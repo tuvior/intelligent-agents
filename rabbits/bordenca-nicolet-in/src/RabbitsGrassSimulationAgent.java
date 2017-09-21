@@ -2,7 +2,14 @@ import uchicago.src.sim.gui.Drawable;
 import uchicago.src.sim.gui.SimGraphics;
 import uchicago.src.sim.space.Object2DGrid;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.ImageObserver;
+import java.awt.image.ImageProducer;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 
 
 /**
@@ -18,6 +25,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
     private int vX;
     private int vY;
     private int energy;
+    private Image icon;
     private RabbitsGrassSimulationSpace rgsSpace;
     private RabbitsGrassSimulationModel rgsModel;
 
@@ -25,11 +33,17 @@ public class RabbitsGrassSimulationAgent implements Drawable {
     private int id;
 
     public RabbitsGrassSimulationAgent(int energy) {
-        x = -1;
-        y = -1;
+        this.x = -1;
+        this.y = -1;
         setVxVy();
         this.energy = energy;
-        id = ++idNumber;
+        this.id = ++idNumber;
+
+        try {
+            this.icon = ImageIO.read(new File("resources/rabbit.png"));
+        } catch (IOException e) {
+            System.out.println("Couldn't load rabbit icon, using colored rectangles...");
+        }
     }
 
     public void setXY(int newX, int newY) {
@@ -49,7 +63,11 @@ public class RabbitsGrassSimulationAgent implements Drawable {
 
 
     public void draw(SimGraphics g) {
-        g.drawFastRoundRect(energy > 5 ? Color.PINK : Color.GRAY);
+        if (this.icon == null) {
+            g.drawFastRoundRect(energy > 5 ? Color.PINK : Color.GRAY);
+        } else {
+            g.drawImageToFit(this.icon);
+        }
     }
 
     public int getX() {
