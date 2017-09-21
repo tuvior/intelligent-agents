@@ -124,7 +124,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
     }
 
     public String[] getInitParam() {
-        return new String[]{"NumRabbits", "BirthThreshold", "GrassGrowthRate", "GridWidth", "GridHeight", "Grass", "BirthEnergy"};
+        return new String[]{"NumRabbits", "BirthThreshold", "GrassGrowthRate", "GridWidth", "GridHeight", "Grass", "BirthEnergy", "GrassEnergy"};
     }
 
     public String getName() {
