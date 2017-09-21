@@ -1,4 +1,5 @@
 import uchicago.src.sim.engine.Schedule;
+import uchicago.src.sim.engine.SimInit;
 import uchicago.src.sim.engine.SimModelImpl;
 
 /**
@@ -13,15 +14,24 @@ import uchicago.src.sim.engine.SimModelImpl;
 
 public class RabbitsGrassSimulationModel extends SimModelImpl {
 
+    // Default values
+    private static int GRID_WIDTH = 20;
+    private static int GRID_HEIGHT = 20;
+    private static int NUM_RABBITS = 10;
+    private static int BIRTH_THRESHOLD = 5;
+    private static int GRASS_GROWTH_RATE = 10;
+
     private Schedule schedule;
-    private int numRabbits;
-    private int birthThreshold;
-    private int grassGrowthRate;
-    private int gridHeight;
-    private int gridWidth;
+    private int numRabbits = NUM_RABBITS;
+    private int birthThreshold = BIRTH_THRESHOLD;
+    private int grassGrowthRate = GRASS_GROWTH_RATE;
+    private int gridHeight = GRID_HEIGHT;
+    private int gridWidth = GRID_WIDTH;
 
     public static void main(String[] args) {
-        System.out.println("Rabbit skeleton");
+        SimInit init = new SimInit();
+        RabbitsGrassSimulationModel model = new RabbitsGrassSimulationModel();
+        init.loadModel(model, "", false);
     }
 
     public void begin() {
