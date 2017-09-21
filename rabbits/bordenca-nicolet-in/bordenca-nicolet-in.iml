@@ -9,5 +9,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="jdk" jdkName="1.8" jdkType="JavaSDK" />
     <orderEntry type="library" name="intelagent_jars" level="application" />
+    <orderEntry type="library" name="IntelligentAgentsJars" level="project" />
   </component>
 </module>
