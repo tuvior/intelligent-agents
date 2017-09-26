@@ -1,5 +1,7 @@
 import uchicago.src.sim.space.Object2DGrid;
 
+import java.awt.*;
+
 /**
  * Class that implements the simulation space of the rabbits grass simulation.
  *
@@ -21,18 +23,6 @@ public class RabbitsGrassSimulationSpace {
         }
     }
 
-    public Object2DGrid getCurrentGrassField() {
-        return grassField;
-    }
-
-    public Object2DGrid getCurrentRabbitSpace() {
-        return rabbitSpace;
-    }
-
-    private boolean isCellOccupied(int x, int y) {
-        return rabbitSpace.getObjectAt(x, y) != null;
-    }
-
     public boolean addRabbit(RabbitsGrassSimulationAgent rabbit) {
         int count = 0;
         int countLimit = 10 * rabbitSpace.getSizeX() * rabbitSpace.getSizeY();
@@ -51,8 +41,7 @@ public class RabbitsGrassSimulationSpace {
 
         return false;
     }
-
-
+    
     public boolean moveRabbitAt(int x, int y, int newX, int newY){
         if(!isCellOccupied(newX, newY)){
             RabbitsGrassSimulationAgent rabbit = (RabbitsGrassSimulationAgent) rabbitSpace.getObjectAt(x, y);
@@ -63,11 +52,6 @@ public class RabbitsGrassSimulationSpace {
         }
         return false;
     }
-
-    public boolean getGrassAt(int x, int y) {
-        return grassField.getObjectAt(x, y).equals(1);
-    }
-
 
     public void placeGrass(int grass) {
 
@@ -89,17 +73,37 @@ public class RabbitsGrassSimulationSpace {
         }
     }
 
-    public boolean tryEatGrass(int x, int y){
-        if (getGrassAt(x, y)) {
+    public boolean tryTakeGrass(int x, int y){
+        if (isGrass(x, y)) {
             grassField.putObjectAt(x, y, 0);
             return true;
         }
         return false;
     }
 
-
     public void removeRabbitAt(int x, int y){
         rabbitSpace.putObjectAt(x, y, null);
     }
 
+    /* -- Helpers -- */
+    private boolean isCellOccupied(int x, int y) {
+        return rabbitSpace.getObjectAt(x, y) != null;
+    }
+
+    /* -- Getters - Setters -- */
+    public boolean isGrass(int x, int y) {
+        return grassField.getObjectAt(x, y).equals(1);
+    }
+
+    public Dimension getRabbitSpaceSize() {
+        return rabbitSpace.getSize();
+    }
+
+    public Object2DGrid getCurrentGrassField() {
+        return grassField;
+    }
+
+    public Object2DGrid getCurrentRabbitSpace() {
+        return rabbitSpace;
+    }
 }

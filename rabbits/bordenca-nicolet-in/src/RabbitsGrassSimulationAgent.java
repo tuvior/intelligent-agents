@@ -20,24 +20,20 @@ import java.net.URL;
 
 public class RabbitsGrassSimulationAgent implements Drawable {
 
-    private int x;
-    private int y;
-    private int vX;
-    private int vY;
-    private int energy;
-    private Image icon;
+    private int id, x, y, vX, vY, energy;
     private RabbitsGrassSimulationSpace rgsSpace;
     private RabbitsGrassSimulationModel rgsModel;
+    private Image icon;
 
     private static int idNumber = 0;
-    private int id;
 
-    public RabbitsGrassSimulationAgent(int energy) {
+    public RabbitsGrassSimulationAgent(int energy, RabbitsGrassSimulationModel rgsModel) {
         this.x = -1;
         this.y = -1;
-        setVxVy();
         this.energy = energy;
         this.id = ++idNumber;
+        this.rgsModel = rgsModel;
+        setVxVy();
 
         try {
             this.icon = ImageIO.read(new File("resources/rabbit.png"));
@@ -46,11 +42,52 @@ public class RabbitsGrassSimulationAgent implements Drawable {
         }
     }
 
-    public void setXY(int newX, int newY) {
-        x = newX;
-        y = newY;
+    /* -- Public interface -- */
+    public void step() {
+        tryMove();
+        setVxVy();
+        fatigue();
     }
 
+    public void birthFatigue() {
+        energy /= 2;
+    }
+
+    public void draw(SimGraphics g) {
+        if (this.icon == null) {
+            g.drawFastRoundRect(energy > 5 ? Color.PINK : Color.GRAY);
+        } else {
+            g.drawImageToFit(this.icon);
+        }
+    }
+
+    public void report() {
+        System.out.println(getID() + " at " + x + ", " + y + " has " + getEnergy() + " energy.");
+    }
+
+    /* -- Helper methods -- */
+    private void tryMove() {
+        int newX = x + vX;
+        int newY = y + vY;
+
+        Dimension dimension = rgsSpace.getRabbitSpaceSize();
+        newX = (newX + dimension.width) % dimension.width;
+        newY = (newY + dimension.height) % dimension.height;
+
+        if (rgsSpace.moveRabbitAt(x, y, newX, newY)) {
+            if (rgsSpace.tryTakeGrass(x, y)) {
+                eat();
+            }
+        }
+    }
+
+    private void eat() {
+        energy += rgsModel.getGrassEnergy();
+    }
+
+    private void fatigue() {
+        energy--;
+    }
 
     private void setVxVy() {
         vX = 0;
@@ -61,15 +98,7 @@ public class RabbitsGrassSimulationAgent implements Drawable {
         }
     }
 
-
-    public void draw(SimGraphics g) {
-        if (this.icon == null) {
-            g.drawFastRoundRect(energy > 5 ? Color.PINK : Color.GRAY);
-        } else {
-            g.drawImageToFit(this.icon);
-        }
-    }
-
+    /* -- Getters - Setters -- */
     public int getX() {
         return x;
     }
@@ -86,39 +115,9 @@ public class RabbitsGrassSimulationAgent implements Drawable {
         return energy;
     }
 
-
-    public void report() {
-        System.out.println(getID() +
-                " at " +
-                x + ", " + y +
-                " has " +
-                getEnergy() + " energy.");
-    }
-
-    public void birthFatigue() {
-        energy /= 2;
-    }
-
-    public void step() {
-        int newX = x + vX;
-        int newY = y + vY;
-
-        Object2DGrid grid = rgsSpace.getCurrentRabbitSpace();
-        newX = (newX + grid.getSizeX()) % grid.getSizeX();
-        newY = (newY + grid.getSizeY()) % grid.getSizeY();
-
-        if (tryMove(newX, newY)) {
-            if (rgsSpace.tryEatGrass(x, y)) {
-                energy += rgsModel.getGrassEnergy();
-            }
-        }
-        setVxVy();
-        energy--;
-    }
-
-
-    private boolean tryMove(int newX, int newY) {
-        return rgsSpace.moveRabbitAt(x, y, newX, newY);
+    public void setXY(int newX, int newY) {
+        x = newX;
+        y = newY;
     }
 
     public void setRgsSpace(RabbitsGrassSimulationSpace rgsSpace) {
