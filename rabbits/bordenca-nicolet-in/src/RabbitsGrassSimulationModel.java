@@ -51,7 +51,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
     private int grassEnergy = GRASS_ENERGY;
 
     // Graphs
-    OpenSequenceGraph rabbitsNumber;
+    OpenSequenceGraph populationGraph;
 
     public static void main(String[] args) {
         SimInit init = new SimInit();
@@ -72,16 +72,16 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         displaySurf = new DisplaySurface(this, "Rabbits Grass Simulation Window 1");
 
         // Tear down and init graphs
-        if (rabbitsNumber != null)
+        if (populationGraph != null)
         {
-            rabbitsNumber.dispose();
+            populationGraph.dispose();
         }
-        rabbitsNumber = null;
-        rabbitsNumber = new OpenSequenceGraph("Number of rabbits", this);
+        populationGraph = null;
+        populationGraph = new OpenSequenceGraph("Population graph", this);
 
         // Register displays
         registerDisplaySurface("Rabbits Grass Simulation Window 1", displaySurf);
-        registerMediaProducer("Number of rabbits", rabbitsNumber);
+        registerMediaProducer("Population graph", populationGraph);
 
     }
 
@@ -92,7 +92,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
         // Display windows
         displaySurf.display();
-        rabbitsNumber.display();
+        populationGraph.display();
     }
 
     /* -- Model -- */
@@ -126,13 +126,14 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         displaySurf.addDisplayableProbeable(displayAgents, "Rabbits");
 
         // Add sequences to graphs
-        rabbitsNumber.addSequence("Number of rabbits", new RabbitsNumber());
+        populationGraph.addSequence("Number of rabbits", new RabbitsNumber());
+        populationGraph.addSequence("Number of grass cells", new GrassNumber());
     }
 
     /* -- Schedule -- */
     public void buildSchedule() {
         schedule.scheduleActionBeginning(0, new SimulationStepAction());
-        schedule.scheduleActionAtInterval(10, new UpdateRabbitsGraphAction());
+        schedule.scheduleActionAtInterval(10, new UpdateGraphAction());
     }
 
     class SimulationStepAction extends BasicAction {
@@ -146,9 +147,9 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         }
     }
 
-    class UpdateRabbitsGraphAction extends BasicAction {
+    class UpdateGraphAction extends BasicAction {
         public void execute() {
-            rabbitsNumber.step();
+            populationGraph.step();
         }
     }
 
@@ -206,6 +207,17 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
         public double getSValue() {
             return (double)countLivingRabbits();
+        }
+    }
+
+    class GrassNumber implements DataSource, Sequence {
+
+        public Object execute() {
+            return new Double(getSValue());
+        }
+
+        public double getSValue() {
+            return (double)rgsSpace.countGrass();
         }
     }
 

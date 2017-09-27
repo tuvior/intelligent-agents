@@ -41,6 +41,10 @@ public class RabbitsGrassSimulationSpace {
 
         return false;
     }
+
+    public void removeRabbitAt(int x, int y){
+        rabbitSpace.putObjectAt(x, y, null);
+    }
     
     public boolean moveRabbitAt(int x, int y, int newX, int newY){
         if(!isRabbit(newX, newY)){
@@ -73,7 +77,7 @@ public class RabbitsGrassSimulationSpace {
         }
     }
 
-    public boolean tryTakeGrass(int x, int y){
+    public boolean tryTakeGrass(int x, int y) {
         if (isGrass(x, y)) {
             grassField.putObjectAt(x, y, 0);
             return true;
@@ -81,8 +85,17 @@ public class RabbitsGrassSimulationSpace {
         return false;
     }
 
-    public void removeRabbitAt(int x, int y){
-        rabbitSpace.putObjectAt(x, y, null);
+    public int countGrass() {
+        int grass = 0;
+        for (int i = 0; i < grassField.getSizeX(); i++) {
+            for (int j = 0; j < grassField.getSizeY(); j++) {
+                if (isGrass(i, j)) {
+                    grass++;
+                }
+            }
+        }
+
+        return grass;
     }
 
     /* -- Helpers -- */
