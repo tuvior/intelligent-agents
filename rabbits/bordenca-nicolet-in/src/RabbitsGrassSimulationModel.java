@@ -100,8 +100,8 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         Object2DDisplay displayAgents = new Object2DDisplay(rgsSpace.getCurrentRabbitSpace());
         displayAgents.setObjectList(rabbits);
 
-        displaySurf.addDisplayable(displayGrass, "Grass");
-        displaySurf.addDisplayable(displayAgents, "Rabbits");
+        displaySurf.addDisplayableProbeable(displayGrass, "Grass");
+        displaySurf.addDisplayableProbeable(displayAgents, "Rabbits");
     }
 
     /* -- Schedule -- */
