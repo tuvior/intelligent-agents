@@ -30,7 +30,7 @@ public class RabbitsGrassSimulationSpace {
         while (count < countLimit) {
             int x = (int) (Math.random() * (rabbitSpace.getSizeX()));
             int y = (int) (Math.random() * (rabbitSpace.getSizeY()));
-            if (!isCellOccupied(x, y)) {
+            if (isCellEmpty(x, y)) {
                 rabbitSpace.putObjectAt(x, y, rabbit);
                 rabbit.setXY(x, y);
                 rabbit.setRgsSpace(this);
@@ -43,7 +43,7 @@ public class RabbitsGrassSimulationSpace {
     }
     
     public boolean moveRabbitAt(int x, int y, int newX, int newY){
-        if(!isCellOccupied(newX, newY)){
+        if(!isRabbit(newX, newY)){
             RabbitsGrassSimulationAgent rabbit = (RabbitsGrassSimulationAgent) rabbitSpace.getObjectAt(x, y);
             removeRabbitAt(x,y);
             rabbit.setXY(newX, newY);
@@ -86,8 +86,12 @@ public class RabbitsGrassSimulationSpace {
     }
 
     /* -- Helpers -- */
-    private boolean isCellOccupied(int x, int y) {
-        return rabbitSpace.getObjectAt(x, y) != null || isGrass(x, y);
+    private boolean isCellEmpty(int x, int y) {
+        return rabbitSpace.getObjectAt(x, y) == null || !isGrass(x, y);
+    }
+
+    private boolean isRabbit(int x, int y) {
+        return rabbitSpace.getObjectAt(x, y) != null;
     }
 
     /* -- Getters - Setters -- */

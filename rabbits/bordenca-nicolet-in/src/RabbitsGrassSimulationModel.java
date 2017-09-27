@@ -1,3 +1,6 @@
+import uchicago.src.sim.analysis.DataSource;
+import uchicago.src.sim.analysis.OpenSequenceGraph;
+import uchicago.src.sim.analysis.Sequence;
 import uchicago.src.sim.engine.BasicAction;
 import uchicago.src.sim.engine.Schedule;
 import uchicago.src.sim.engine.SimInit;
@@ -47,18 +50,13 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
     private int birthEnergy = BIRTH_ENERGY;
     private int grassEnergy = GRASS_ENERGY;
 
+    // Graphs
+    OpenSequenceGraph rabbitsNumber;
+
     public static void main(String[] args) {
         SimInit init = new SimInit();
         RabbitsGrassSimulationModel model = new RabbitsGrassSimulationModel();
         init.loadModel(model, "", false);
-    }
-
-    public void begin() {
-        buildModel();
-        buildSchedule();
-        buildDisplay();
-
-        displaySurf.display();
     }
 
     public void setup() {
@@ -66,13 +64,35 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         rabbits = new ArrayList<>();
         schedule = new Schedule(200);
 
+        // Tear down and init display
         if (displaySurf != null) {
             displaySurf.dispose();
         }
         displaySurf = null;
         displaySurf = new DisplaySurface(this, "Rabbits Grass Simulation Window 1");
 
+        // Tear down and init graphs
+        if (rabbitsNumber != null)
+        {
+            rabbitsNumber.dispose();
+        }
+        rabbitsNumber = null;
+        rabbitsNumber = new OpenSequenceGraph("Number of rabbits", this);
+
+        // Register displays
         registerDisplaySurface("Rabbits Grass Simulation Window 1", displaySurf);
+        registerMediaProducer("Number of rabbits", rabbitsNumber);
+
+    }
+
+    public void begin() {
+        buildModel();
+        buildSchedule();
+        buildDisplay();
+
+        // Display windows
+        displaySurf.display();
+        rabbitsNumber.display();
     }
 
     /* -- Model -- */
@@ -89,28 +109,33 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
     /* -- Display -- */
     public void buildDisplay() {
+        // Create the grass display
         ColorMap map = new ColorMap();
-
         map.mapColor(0, Color.BLACK);
         map.mapColor(1, Color.GREEN);
 
         Value2DDisplay displayGrass =
                 new Value2DDisplay(rgsSpace.getCurrentGrassField(), map);
 
+        // Create the rabbit display
         Object2DDisplay displayAgents = new Object2DDisplay(rgsSpace.getCurrentRabbitSpace());
         displayAgents.setObjectList(rabbits);
 
+        // Add displays to surface
         displaySurf.addDisplayableProbeable(displayGrass, "Grass");
         displaySurf.addDisplayableProbeable(displayAgents, "Rabbits");
+
+        // Add sequences to graphs
+        rabbitsNumber.addSequence("Number of rabbits", new RabbitsNumber());
     }
 
     /* -- Schedule -- */
     public void buildSchedule() {
-        schedule.scheduleActionBeginning(0, new RabbitsGrassSimulationStep());
-        schedule.scheduleActionAtInterval(10, new RabbitsGrassSimulationCountLiving());
+        schedule.scheduleActionBeginning(0, new SimulationStepAction());
+        schedule.scheduleActionAtInterval(10, new UpdateRabbitsGraphAction());
     }
 
-    class RabbitsGrassSimulationStep extends BasicAction {
+    class SimulationStepAction extends BasicAction {
         public void execute() {
             SimUtilities.shuffle(rabbits);
             rabbits.forEach(RabbitsGrassSimulationAgent::step);
@@ -121,11 +146,13 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         }
     }
 
-    class RabbitsGrassSimulationCountLiving extends BasicAction {
-        public void execute(){
-            countLivingRabbits();
+    class UpdateRabbitsGraphAction extends BasicAction {
+        public void execute() {
+            rabbitsNumber.step();
         }
     }
+
+
 
     /* -- Helpers -- */
     private int countLivingRabbits(){
@@ -169,6 +196,19 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         if (count > 0)
             System.out.println(count + " rabbits died.");
     }
+
+    /* -- Graphs -- */
+    class RabbitsNumber implements DataSource, Sequence {
+
+        public Object execute() {
+            return new Double(getSValue());
+        }
+
+        public double getSValue() {
+            return (double)countLivingRabbits();
+        }
+    }
+
 
     /* -- Getters - Setters */
     public String[] getInitParam() {
