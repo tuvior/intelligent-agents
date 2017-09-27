@@ -68,8 +68,8 @@ public class RabbitsGrassSimulationSpace {
             int x = (int) (Math.random() * (grassField.getSizeX()));
             int y = (int) (Math.random() * (grassField.getSizeY()));
 
-            // Set grass if no grass at coordinates
-            if (grassField.getObjectAt(x, y).equals(0)) {
+            // Set grass if no grass nor rabbit there
+            if (!isGrass(x, y) && !isRabbit(x, y)) {
                 grassField.putObjectAt(x, y, 1);
                 placed++;
             }
