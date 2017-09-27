@@ -87,7 +87,7 @@ public class RabbitsGrassSimulationSpace {
 
     /* -- Helpers -- */
     private boolean isCellOccupied(int x, int y) {
-        return rabbitSpace.getObjectAt(x, y) != null;
+        return rabbitSpace.getObjectAt(x, y) != null || isGrass(x, y);
     }
 
     /* -- Getters - Setters -- */
