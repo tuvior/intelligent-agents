@@ -85,12 +85,11 @@ public class RabbitsGrassSimulationAgent implements Drawable {
     }
 
     private void setVxVy() {
-        vX = 0;
-        vY = 0;
-        while ((vX == 0) && (vY == 0)) {
-            vX = (int) Math.floor(Math.random() * 3) - 1;
-            vY = (int) Math.floor(Math.random() * 3) - 1;
-        }
+        // Only North, South, East and West
+        int dir = Math.random() < 0.5 ? -1 : 1;
+        boolean vertical = Math.random() < 0.5;
+        vX = vertical ? 0 : dir;
+        vY = vertical ? dir : 0;
     }
 
     /* -- Getters - Setters -- */
