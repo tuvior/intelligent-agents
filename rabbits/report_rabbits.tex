@@ -20,7 +20,8 @@
 In our implementation we assumed that each cell can contain one unit of grass and that grass cannot grow if the cell is already occupied by a rabbit. We decided that upon giving birth a rabbit has its energy halved, rather than subtracting an arbitrary amount. Energy loss for rabbit is steady at one per tick, in any case, even if it ate this same tick. Rabbits try to move each tick by choosing a direction and then displacing if the target cell isn't already occupied by another rabbit, otherwise the rabbit will stay in place and try to move the next tick.
 
 \subsection{Implementation Remarks}
-% Provide important details about your implementation, such as handling of boundary conditions %
+When trying to add a rabbit and there is no available space the action fails silently, i.e. if a rabbit should be born but no cell is free no rabbit is added but the "parent" still loses energy for giving birth. Same applies for grass growing. \\
+The limits we put to parameters are arbitrary, and could be unbounded since values such as energy could theoretically grow infinitely.
 
 \section{Results}
 % In this section, you study and describe how different variables (e.g. birth threshold, grass growth rate etc.) or combinations of variables influence the results. Different experiments with diffrent settings are described below with your observations and analysis
