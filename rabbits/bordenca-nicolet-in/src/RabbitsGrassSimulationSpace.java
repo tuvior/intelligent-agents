@@ -10,12 +10,14 @@ import java.awt.*;
 
 public class RabbitsGrassSimulationSpace {
 
+    private RabbitsGrassSimulationModel rgsModel;
     private Object2DGrid grassField;
     private Object2DGrid rabbitSpace;
 
-    public RabbitsGrassSimulationSpace(int xSize, int ySize) {
+    public RabbitsGrassSimulationSpace(int xSize, int ySize, RabbitsGrassSimulationModel model) {
         grassField = new Object2DGrid(xSize, ySize);
         rabbitSpace = new Object2DGrid(xSize, ySize);
+        rgsModel = model;
         for (int i = 0; i < xSize; i++) {
             for (int j = 0; j < ySize; j++) {
                 grassField.putObjectAt(i, j, 0);
@@ -59,7 +61,7 @@ public class RabbitsGrassSimulationSpace {
 
     public void placeGrass(int grass) {
 
-        grass = Math.min(grass, grassField.getSizeX() * grassField.getSizeY());
+        grass = Math.min(grass, countEmptySpace());
 
         // Randomly place money in moneySpace
         int placed = 0;
@@ -96,6 +98,20 @@ public class RabbitsGrassSimulationSpace {
         }
 
         return grass;
+    }
+
+    public int countEmptySpace() {
+        int empty = 0;
+
+        for (int i = 0; i < grassField.getSizeX(); i++) {
+            for (int j = 0; j < grassField.getSizeY(); j++) {
+                if (!isGrass(i, j) && !isRabbit(i, j)) {
+                    empty++;
+                }
+            }
+        }
+
+        return empty;
     }
 
     /* -- Helpers -- */

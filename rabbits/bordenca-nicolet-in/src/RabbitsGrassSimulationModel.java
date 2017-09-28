@@ -101,7 +101,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
     /* -- Model -- */
     public void buildModel() {
-        rgsSpace = new RabbitsGrassSimulationSpace(gridWidth, gridHeight);
+        rgsSpace = new RabbitsGrassSimulationSpace(gridWidth, gridHeight, this);
         rgsSpace.placeGrass(initialGrass);
 
         for (int i = 0; i < numRabbits; i++) {
@@ -160,7 +160,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
 
     /* -- Helpers -- */
-    private int countLivingRabbits(){
+    public int countLivingRabbits(){
         return (int) rabbits.stream().filter(r -> r.getEnergy() > 0).count();
     }
 
