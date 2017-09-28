@@ -2,6 +2,7 @@ import com.sun.xml.internal.ws.policy.PolicyConstants;
 import uchicago.src.sim.analysis.DataSource;
 import uchicago.src.sim.analysis.OpenSequenceGraph;
 import uchicago.src.sim.analysis.Sequence;
+import uchicago.src.sim.analysis.plot.OpenGraph;
 import uchicago.src.sim.engine.BasicAction;
 import uchicago.src.sim.engine.Schedule;
 import uchicago.src.sim.engine.SimInit;
@@ -63,7 +64,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
     public void setup() {
         rgsSpace = null;
         rabbits = new ArrayList<>();
-        schedule = new Schedule(200);
+        schedule = new Schedule(1);
 
         // Tear down and init display
         if (displaySurf != null) {
@@ -129,8 +130,8 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         displaySurf.addDisplayableProbeable(displayAgents, "Rabbits");
 
         // Add sequences to graphs
-        populationGraph.addSequence("Number of rabbits", new RabbitsNumber());
-        populationGraph.addSequence("Number of grass cells", new GrassNumber());
+        populationGraph.addSequence("Number of rabbits", new RabbitsNumber(), OpenGraph.CIRCLE);
+        populationGraph.addSequence("Number of grass cells", new GrassNumber(), OpenGraph.CIRCLE);
     }
 
     /* -- Schedule -- */
@@ -205,7 +206,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
     class RabbitsNumber implements DataSource, Sequence {
 
         public Object execute() {
-            return new Double(getSValue());
+            return getSValue();
         }
 
         public double getSValue() {
@@ -216,7 +217,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
     class GrassNumber implements DataSource, Sequence {
 
         public Object execute() {
-            return new Double(getSValue());
+            return getSValue();
         }
 
         public double getSValue() {
