@@ -26,22 +26,22 @@ public class RabbitsGrassSimulationSpace {
     }
 
     public boolean addRabbit(RabbitsGrassSimulationAgent rabbit) {
-        int count = 0;
-        int countLimit = 10 * rabbitSpace.getSizeX() * rabbitSpace.getSizeY();
+        if (countEmptySpace() < 1) return false;
 
-        while (count < countLimit) {
+        while (true) {
+            // choose coordinates
             int x = (int) (Math.random() * (rabbitSpace.getSizeX()));
             int y = (int) (Math.random() * (rabbitSpace.getSizeY()));
+
+            // place rabbit if empty cell
             if (isCellEmpty(x, y)) {
                 rabbitSpace.putObjectAt(x, y, rabbit);
                 rabbit.setXY(x, y);
                 rabbit.setRgsSpace(this);
                 return true;
             }
-            count++;
-        }
 
-        return false;
+        }
     }
 
     public void removeRabbitAt(int x, int y){
@@ -61,17 +61,18 @@ public class RabbitsGrassSimulationSpace {
 
     public void placeGrass(int grass) {
 
+        // reduce amount of grass placed if field is full
         grass = Math.min(grass, countEmptySpace());
 
-        // Randomly place money in moneySpace
+        // randomly place grass in field
         int placed = 0;
         while (placed < grass) {
-            // Choose coordinates
+            // choose coordinates
             int x = (int) (Math.random() * (grassField.getSizeX()));
             int y = (int) (Math.random() * (grassField.getSizeY()));
 
-            // Set grass if no grass nor rabbit there
-            if (!isGrass(x, y) && !isRabbit(x, y)) {
+            // set grass if no grass nor rabbit there
+            if (isCellEmpty(x, y)) {
                 grassField.putObjectAt(x, y, 1);
                 placed++;
             }
@@ -105,7 +106,7 @@ public class RabbitsGrassSimulationSpace {
 
         for (int i = 0; i < grassField.getSizeX(); i++) {
             for (int j = 0; j < grassField.getSizeY(); j++) {
-                if (!isGrass(i, j) && !isRabbit(i, j)) {
+                if (isCellEmpty(i, j)) {
                     empty++;
                 }
             }

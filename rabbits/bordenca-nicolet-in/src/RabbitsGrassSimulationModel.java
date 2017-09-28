@@ -183,8 +183,9 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
 
     private void addNewRabbit() {
         RabbitsGrassSimulationAgent rabbit = new RabbitsGrassSimulationAgent(birthEnergy, this);
-        rabbits.add(rabbit);
-        rgsSpace.addRabbit(rabbit);
+        if (rgsSpace.addRabbit(rabbit)) {
+            rabbits.add(rabbit);
+        }
     }
 
 
