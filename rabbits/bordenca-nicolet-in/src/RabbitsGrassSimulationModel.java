@@ -1,3 +1,4 @@
+import com.sun.xml.internal.ws.policy.PolicyConstants;
 import uchicago.src.sim.analysis.DataSource;
 import uchicago.src.sim.analysis.OpenSequenceGraph;
 import uchicago.src.sim.analysis.Sequence;
@@ -78,6 +79,8 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         }
         populationGraph = null;
         populationGraph = new OpenSequenceGraph("Population graph", this);
+        populationGraph.setXViewPolicy(OpenSequenceGraph.SHOW_LAST);
+        populationGraph.setXRange(0, 10000);
 
         // Register displays
         registerDisplaySurface("Rabbits Grass Simulation Window 1", displaySurf);
