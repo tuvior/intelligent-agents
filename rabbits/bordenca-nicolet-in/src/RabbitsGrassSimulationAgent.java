@@ -18,8 +18,8 @@ public class RabbitsGrassSimulationAgent implements Drawable {
     private int id, x, y, vX, vY, energy;
     private RabbitsGrassSimulationSpace rgsSpace;
     private RabbitsGrassSimulationModel rgsModel;
-    private Image icon;
 
+    private static Image icon;
     private static int idNumber = 0;
 
     public RabbitsGrassSimulationAgent(int energy, RabbitsGrassSimulationModel rgsModel) {
@@ -30,10 +30,12 @@ public class RabbitsGrassSimulationAgent implements Drawable {
         this.rgsModel = rgsModel;
         setVxVy();
 
-        try {
-            this.icon = ImageIO.read(new File("resources/rabbit.png"));
-        } catch (IOException e) {
-            System.out.println("Couldn't load rabbit icon, using colored rectangles...");
+        if (icon == null) {
+            try {
+                icon = ImageIO.read(new File("resources/rabbit.png"));
+            } catch (IOException e) {
+                System.out.println("Couldn't load rabbit icon, using colored rectangles...");
+            }
         }
     }
 
