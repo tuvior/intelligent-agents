@@ -126,8 +126,8 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         displayAgents.setObjectList(rabbits);
 
         // Add displays to surface
-        displaySurf.addDisplayableProbeable(displayGrass, "Grass");
-        displaySurf.addDisplayableProbeable(displayAgents, "Rabbits");
+        displaySurf.addDisplayable(displayGrass, "Grass");
+        displaySurf.addDisplayable(displayAgents, "Rabbits");
 
         // Add sequences to graphs
         populationGraph.addSequence("Number of rabbits", new RabbitsNumber(), OpenGraph.CIRCLE);
