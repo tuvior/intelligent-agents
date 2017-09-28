@@ -100,7 +100,7 @@ public class RabbitsGrassSimulationSpace {
 
     /* -- Helpers -- */
     private boolean isCellEmpty(int x, int y) {
-        return rabbitSpace.getObjectAt(x, y) == null || !isGrass(x, y);
+        return !isRabbit(x, y) && !isGrass(x, y);
     }
 
     private boolean isRabbit(int x, int y) {
