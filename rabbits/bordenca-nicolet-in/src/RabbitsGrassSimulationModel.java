@@ -1,4 +1,4 @@
-import com.sun.xml.internal.ws.policy.PolicyConstants;
+import uchicago.src.reflector.RangePropertyDescriptor;
 import uchicago.src.sim.analysis.DataSource;
 import uchicago.src.sim.analysis.OpenSequenceGraph;
 import uchicago.src.sim.analysis.Sequence;
@@ -82,6 +82,12 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         populationGraph = new OpenSequenceGraph("Population graph", this);
         populationGraph.setXViewPolicy(OpenSequenceGraph.SHOW_LAST);
         populationGraph.setXRange(0, 2000);
+
+        // Sliders
+        descriptors.put("GrassGrowthRate", new RangePropertyDescriptor("GrassGrowthRate", 0, 50, 10));
+        descriptors.put("GrassEnergy", new RangePropertyDescriptor("GrassEnergy", 0, 50, 10));
+        descriptors.put("BirthThreshold", new RangePropertyDescriptor("BirthThreshold", 10, 80, 20));
+        descriptors.put("BirthEnergy", new RangePropertyDescriptor("BirthEnergy", 10, 100, 20));
 
         // Register displays
         registerDisplaySurface("Rabbits Grass Simulation Window 1", displaySurf);
