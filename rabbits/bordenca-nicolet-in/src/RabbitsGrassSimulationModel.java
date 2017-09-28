@@ -81,7 +81,7 @@ public class RabbitsGrassSimulationModel extends SimModelImpl {
         populationGraph = null;
         populationGraph = new OpenSequenceGraph("Population graph", this);
         populationGraph.setXViewPolicy(OpenSequenceGraph.SHOW_LAST);
-        populationGraph.setXRange(0, 10000);
+        populationGraph.setXRange(0, 2000);
 
         // Register displays
         registerDisplaySurface("Rabbits Grass Simulation Window 1", displaySurf);
