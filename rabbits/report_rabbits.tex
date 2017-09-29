@@ -26,6 +26,7 @@ The limits we put to parameters are arbitrary, and could be unbounded since valu
 \section{Results}
 % In this section, you study and describe how different variables (e.g. birth threshold, grass growth rate etc.) or combinations of variables influence the results. Different experiments with diffrent settings are described below with your observations and analysis
 
+All experiments are performed with a grid of 20x20, 40 grass cells and 20 rabbits initially.
 
 % First Two Variables (Tobias)
 \subsection{Experiment 1}
@@ -49,27 +50,40 @@ The limits we put to parameters are arbitrary, and could be unbounded since valu
 \subsubsection{Observations}
 % Elaborate on the observed results %
 
+
+
+
 % Last Two Variables (Paul)
 
-\subsection{Experiment 4}
+\subsection{Experiment 4: Grass Energy}
 
 \subsubsection{Setting}
+In this experiment, we analize the effect of the \textit{GrassEnergy} parameter on the simulation. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70 and \textit{GrassGrowthRate} is 2.
+
+\subsubsection{Observations}
+Starting with an initial value of 10, the number of rabbit stays inferior to the number of grass cells, however we observe pretty important fluctuations which are symmetric in shape between rabbits and grass, but not in amplitude: grass grows, rabbit reproduce, eat grass, then die, and this forms a loop. Decreasing the value reduces the number of rabbit drastically since they can't get enough energy to reproduce. 
+
+Now, the more you increase the value, the less grass rabbits need to eat in order to reproduce. Then the population increases quickly: for example with a value of 20, the population is roughly equal to the number of grass cell. Increasing again the value will inverse the initial situation: the population is more important than the grass, so rabbits die, grass grows, rabbits reproduce and population grows...
+
+\subsection{Experiment 5: Grass Growth Rate}
+
+\subsubsection{Setting}
+In this experiment, we analize the effect of the \textit{GrassGrowthRate} parameter on the simulation. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70 and \textit{GrassEnergy} is 10.
+
 
 \subsubsection{Observations}
 % Elaborate on the observed results %
+With an initial value of 2 grass cells per step, the initial population stays stable, with small fluctuations as usual.
 
-\subsection{Experiment 5}
+One could think that increasing the grass growth rate would of course increase the grass, however the reality is that this variable directly controls the number of rabbit. A grass growth rate of 6 gives as many rabbits as grass cells with a very stable simulation. Increasing the value again directly increases the population. It is interesting to see that from around 35, the population and grass amount are not changing anymore since we are not able to place all the grass at each round, then we reach the upper bound for this setting.
 
-\subsubsection{Setting}
-
-\subsubsection{Observations}
-% Elaborate on the observed results %
-
-\subsection{Experiment 6}
+\subsection{Experiment 6: Relation between Grass Energy and Grass Growth Rate}
 
 \subsubsection{Setting}
+In this experiment we aim to analize the relation between Grass Energy and Grass Growth Rate, and how they operation together.
+The initial values are the following: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70, \textit{GrassEnergy} is 10 and \textit{GrassGrowthRate} is 2.
 
 \subsubsection{Observations}
-% Elaborate on the observed results %
+We saw in the previous experiments that the population increase is roughly proportional to these two variables individually. Here we wish to find if one plays a role on the other. It turns out that setting these two variables to very high value will set the population to the upper bound for this setting as we thought. However, we can see that the energy is much weaker than the growth rate, in the sense that it does not saturate the grid without a high growth rate. This means that it is much profitable for a rabbit to find grass frequently, than finding a very high energy grass once in a while, since it can die on its way looking for it.
 
 \end{document}
