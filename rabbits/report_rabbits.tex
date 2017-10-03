@@ -20,7 +20,7 @@
 In our implementation we assumed that each cell can contain one unit of grass and that grass cannot grow if the cell is already occupied by a rabbit. We decided that upon giving birth a rabbit has its energy halved, rather than subtracting an arbitrary amount. Energy loss for rabbit is steady at one per tick, in any case, even if it ate this same tick. Rabbits try to move each tick by choosing a direction and then displacing if the target cell isn't already occupied by another rabbit, otherwise the rabbit will stay in place and try to move the next tick.
 
 \subsection{Implementation Remarks}
-When trying to add a rabbit and there is no available spacen the action fails silently, i.e. if a rabbit should be born but no cell is free no rabbit is added but the "parent" still loses energy for giving birth. Same applies for grass growing. \\
+When trying to add a rabbit and there is no available spacen the action fails silently, i.e. if a rabbit should be born but no cell is free no rabbit is added but the "parent" still loses energy for giving birth. Same applies for grass growing. 
 The limits we put to parameters are arbitrary, and could be unbounded since values such as energy could theoretically grow infinitely.
 
 \section{Results}
@@ -29,28 +29,43 @@ The limits we put to parameters are arbitrary, and could be unbounded since valu
 All experiments are performed with a grid of 20x20, 40 grass cells and 20 rabbits initially.
 
 % First Two Variables (Tobias)
-\subsection{Experiment 1}
+\subsection{Experiment 1: Birth Energy}
 
 \subsubsection{Setting}
 
-\subsubsection{Observations}
-% Elaborate on the observed results %
+In this experiment, we analyse the effect of the \textit{BirthEnergy} parameter on the simulation, this parameters establishes the amount of energy a rabbit will have upon being created. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthThreshold} is 70, \textit{GrassEnergy} is 10 and \textit{GrassGrowthRate} is 2.
 
-\subsection{Experiment 2}
+\subsubsection{Observations}
+Starting from a value of 10 we observe the amount of grass and the population of rabbits have an inverse relation, with the grass being the majority on the field. Both "populations" have observable oscillations, with grass being the more prominent of the two, where rabbits decreasing in number will cause grass to have more space to grow, causing then the population of rabbits to increase again with the new food available.
+
+Up to 70, i.e. the value corresponding to \textit{BirthThreshold}, the trend doesn't have many variations, the difference between the two populations might vary slightly, but the overall oscillations remains the same. 
+
+Once the threshold of 70 gets crossed we have a complete inversion, rabbits become the majority on the field, grass quantity starts to become more and more constant and rabbit population starts oscillating heavily, up to the point where they just keep the field filled, as a new rabbit will always be ready to fill new empty spaces.
+
+\subsection{Experiment 2: Birth Threshold}
 
 \subsubsection{Setting}
 
-\subsubsection{Observations}
-% Elaborate on the observed results %
+In this experiment, we analyse the effect of the \textit{BirthThreshold} parameter on the simulation, this parameter establishes the amount of energy required for a rabbit to generate a new rabbit. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{GrassEnergy} is 10 and \textit{GrassGrowthRate} is 2.
 
-\subsection{Experiment 3}
+\subsubsection{Observations}
+Starting  from the value 10 we observe a radical effect, the field is entirely filled with rabbits, that are always ready to generate a new rabbit as a place gets freed by a newly died one.
+
+As we increase the threshold we start seeing blinks of grass  and empty spaces here and there.
+Like in our previous experiment, as we surpass the other variable, in this case at the value 30, the situation flips, and we get an almost symmetrical inverse relation between the two populations.
+
+With \textit{BirthThreshold} increasing more and more after that we reach a state that is equal to what with we found in the previous experiment, with a low \textit{BirthEnergy}.
+
+\subsection{Experiment 3: Relation between Birth Energy and Birth Threshold}
 
 \subsubsection{Setting}
+As seen before, it seems that for \textit{BirthThreshold} and \textit{BirthEnergy} the effect is not dictated entirely by their values, but rather by their relation between, we will here test various combinations around their bounds.
+The other values will stay as before: \textit{GrassEnergy} is 10 and \textit{GrassGrowthRate} is 2.
 
 \subsubsection{Observations}
-% Elaborate on the observed results %
+We notice something crucial here, when the two parameters are at their opposites the resulting simulation is extremely unstable, with both at a low value we have rabbits ready to procreate, but also really close to death, we observe a couple of bursts of rabbits, until they all die and the field fills with grass. With both really high we can see that the rabbits will instantly fill the field, removing every source of food, this stops them from being able to reproduce as the energy requirement is too high, which will make them all die before being able to start sustaining the population again.
 
-
+With the parameters at their opposites we obtain states that are both stable in their own way. In the first case (low \textit{energy}, high \textit{threshold}) we get a constant stream of rabbits filling the stream, and the population will never die. In the second case we obtain what looks like the closest trend to what we would observe in nature, with rabbits consuming enough food to keep the population stable.
 
 
 % Last Two Variables (Paul)
@@ -58,7 +73,7 @@ All experiments are performed with a grid of 20x20, 40 grass cells and 20 rabbit
 \subsection{Experiment 4: Grass Energy}
 
 \subsubsection{Setting}
-In this experiment, we analize the effect of the \textit{GrassEnergy} parameter on the simulation. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70 and \textit{GrassGrowthRate} is 2.
+In this experiment, we analyse the effect of the \textit{GrassEnergy} parameter on the simulation. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70 and \textit{GrassGrowthRate} is 2.
 
 \subsubsection{Observations}
 Starting with an initial value of 10, the number of rabbit stays inferior to the number of grass cells, however we observe pretty important fluctuations which are symmetric in shape between rabbits and grass, but not in amplitude: grass grows, rabbit reproduce, eat grass, then die, and this forms a loop. Decreasing the value reduces the number of rabbit drastically since they can't get enough energy to reproduce. 
@@ -68,7 +83,7 @@ Now, the more you increase the value, the less grass rabbits need to eat in orde
 \subsection{Experiment 5: Grass Growth Rate}
 
 \subsubsection{Setting}
-In this experiment, we analize the effect of the \textit{GrassGrowthRate} parameter on the simulation. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70 and \textit{GrassEnergy} is 10.
+In this experiment, we analyse the effect of the \textit{GrassGrowthRate} parameter on the simulation. Other variables are set to reasonable values and stay constant during the entire experiment: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70 and \textit{GrassEnergy} is 10.
 
 
 \subsubsection{Observations}
@@ -80,7 +95,7 @@ One could think that increasing the grass growth rate would of course increase t
 \subsection{Experiment 6: Relation between Grass Energy and Grass Growth Rate}
 
 \subsubsection{Setting}
-In this experiment we aim to analize the relation between Grass Energy and Grass Growth Rate, and how they operation together.
+In this experiment we aim to analyse the relation between Grass Energy and Grass Growth Rate, and how they operation together.
 The initial values are the following: \textit{BirthEnergy} is 30, \textit{BirthThreshold} is 70, \textit{GrassEnergy} is 10 and \textit{GrassGrowthRate} is 2.
 
 \subsubsection{Observations}
