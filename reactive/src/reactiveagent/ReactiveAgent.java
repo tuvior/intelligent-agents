@@ -11,7 +11,7 @@ import logist.task.TaskDistribution;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
-import java.util.Random;
+import java.util.*;
 
 public class ReactiveAgent implements ReactiveBehavior {
 
@@ -52,5 +52,45 @@ public class ReactiveAgent implements ReactiveBehavior {
 		numActions++;
 		
 		return action;
+	}
+
+	private Map<State, Double> learnValues(List<State> states, double discount) {
+		Map<State, Double> values = new HashMap<>();
+		Map<State, Double> previousValues = new HashMap<>();
+
+		while (!goodEnoughValues(values, previousValues)) {
+			previousValues = new HashMap<>(values);
+
+			// For each state
+			states.forEach(state -> {
+				final double[] maxValue = {0};
+				// For each action, aka destination city
+				state.reward.forEach((action, reward) -> {
+					final int[] expectedNextValue = {0};
+
+					state.transitionTable.get(action).forEach((nextState, p) -> {
+						expectedNextValue[0] += p * values.get(nextState);
+					});
+
+					maxValue[0] = Math.max(maxValue[0], reward + discount * expectedNextValue[0]);
+				});
+
+				values.put(state, maxValue[0]);
+			});
+		}
+
+		return values;
+	}
+
+	private boolean goodEnoughValues(Map<State, Double> current, Map<State, Double> previous) {
+		double delta = 1;
+
+		for (Map.Entry<State, Double> entry : current.entrySet()) {
+			if (Math.abs(entry.getValue() - previous.get(entry.getKey())) > delta) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
