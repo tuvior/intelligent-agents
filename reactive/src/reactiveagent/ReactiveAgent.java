@@ -1,19 +1,19 @@
-package template;
+package reactiveagent;
 
-import java.util.Random;
-
-import logist.simulation.Vehicle;
 import logist.agent.Agent;
 import logist.behavior.ReactiveBehavior;
 import logist.plan.Action;
 import logist.plan.Action.Move;
 import logist.plan.Action.Pickup;
+import logist.simulation.Vehicle;
 import logist.task.Task;
 import logist.task.TaskDistribution;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
-public class ReactiveTemplate implements ReactiveBehavior {
+import java.util.Random;
+
+public class ReactiveAgent implements ReactiveBehavior {
 
 	private Random random;
 	private double pPickup;
@@ -38,10 +38,11 @@ public class ReactiveTemplate implements ReactiveBehavior {
 	public Action act(Vehicle vehicle, Task availableTask) {
 		Action action;
 
-		if (availableTask == null || random.nextDouble() > pPickup) {
+		if (availableTask == null) {
 			City currentCity = vehicle.getCurrentCity();
 			action = new Move(currentCity.randomNeighbor(random));
 		} else {
+			//todo:
 			action = new Pickup(availableTask);
 		}
 		
