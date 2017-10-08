@@ -123,40 +123,40 @@ public class ReactiveAgent implements ReactiveBehavior {
 
     public class State {
         public City currentCity;
-        public City destination;
+        public City taskDestination;
         public HashMap<City, Double> reward;
         public HashMap<City, HashMap<State, Double>> transitionTable;
 
         public State(City current, City dest) {
             currentCity = current;
-            destination = dest;
+            taskDestination = dest;
             reward = new HashMap<>();
             transitionTable = new HashMap<>();
             currentCity.neighbors().forEach(city -> transitionTable.put(city, new HashMap<>()));
-            if (destination != null && !transitionTable.containsKey(destination)) {
-                transitionTable.put(destination, new HashMap<>());
+            if (taskDestination != null && !transitionTable.containsKey(taskDestination)) {
+                transitionTable.put(taskDestination, new HashMap<>());
             }
             initRewards();
         }
 
         private void initRewards() {
             currentCity.neighbors().forEach(city -> {
-                if (city.equals(destination)) {
+                if (city.equals(taskDestination)) {
                     reward.put(city, td.reward(currentCity, city) - currentCity.distanceTo(city) * costPerKilometer);
                 } else {
                     reward.put(city, -currentCity.distanceTo(city) * costPerKilometer);
                 }
             });
-            if (!reward.containsKey(destination)) {
-                reward.put(destination, td.reward(currentCity, destination) - currentCity.distanceTo(destination) * costPerKilometer);
+            if (!reward.containsKey(taskDestination)) {
+                reward.put(taskDestination, td.reward(currentCity, taskDestination) - currentCity.distanceTo(taskDestination) * costPerKilometer);
             }
         }
 
         public void addToTransitionTable(State state) {
             if (transitionTable.containsKey(state.currentCity)) {
-                if (destination != null) {
-                    if (state.destination != null) {
-                        double probability = td.probability(currentCity, state.currentCity) * td.probability(state.currentCity, state.destination);
+                if (taskDestination != null) {
+                    if (state.taskDestination != null) {
+                        double probability = td.probability(currentCity, state.currentCity) * td.probability(state.currentCity, state.taskDestination);
                         transitionTable.get(state.currentCity).put(state, probability);
                     } else {
                         double probability = td.probability(currentCity, state.currentCity);
@@ -166,8 +166,8 @@ public class ReactiveAgent implements ReactiveBehavior {
                         transitionTable.get(state.currentCity).put(state, probability);
                     }
                 } else {
-                    if (state.destination != null) {
-                        double probability = td.probability(state.currentCity, state.destination);
+                    if (state.taskDestination != null) {
+                        double probability = td.probability(state.currentCity, state.taskDestination);
                         for (City city2 : topology.cities()) {
                             probability *= 1 - td.probability(currentCity, city2);
                         }
