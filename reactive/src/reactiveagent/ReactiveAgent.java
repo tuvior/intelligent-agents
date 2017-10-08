@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ReactiveAgent implements ReactiveBehavior {
 
@@ -36,7 +37,10 @@ public class ReactiveAgent implements ReactiveBehavior {
         this.costPerKilometer = agent.vehicles().get(0).costPerKm();
         this.topology = topology;
         this.td = td;
+        this.numActions = 0;
+        this.myAgent = agent;
 
+        // initialise all possible states and create an optimized transition table
         LinkedList<State> states = new LinkedList<>();
 
         for (City city1 : topology.cities()) {
@@ -45,6 +49,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
                 states.add(new State(city1, city2, true));
             }
+            // this state corresponds to being in a city without any task available
             states.add(new State(city1, null, true));
         }
 
@@ -53,9 +58,6 @@ public class ReactiveAgent implements ReactiveBehavior {
                 state1.addToTransitionTable(state2);
             }
         }
-
-        this.numActions = 0;
-        this.myAgent = agent;
 
         // Compute strategy
         Map<State, Double> stateValues = learnValues(states, discount);
@@ -66,7 +68,7 @@ public class ReactiveAgent implements ReactiveBehavior {
     public Action act(Vehicle vehicle, Task availableTask) {
         Action action;
 
-        // Create current state (equals has been overriden to compare it in the strategy)
+        // Create current state (equals has been overridden to compare it in the strategy)
         City taskDestination = availableTask == null ? null : availableTask.deliveryCity;
         State currentState = new State(vehicle.getCurrentCity(), taskDestination);
 
@@ -114,15 +116,10 @@ public class ReactiveAgent implements ReactiveBehavior {
     }
 
     private Map<State, Double> learnValues(List<State> states, double discount) {
-        Map<State, Double> values = new HashMap<>();
-        Map<State, Double> previousValues = new HashMap<>();
+        Map<State, Double> values = states.stream().collect(Collectors.toMap(s -> s, s -> Double.NEGATIVE_INFINITY));
+        Map<State, Double> previousValues;
 
-        for (State s : states) {
-            values.put(s, 0.0);
-            previousValues.put(s, 1000.0);
-        }
-
-        while (!goodEnoughValues(values, previousValues)) {
+        do {
             previousValues = new HashMap<>(values);
 
             // For each state
@@ -132,16 +129,15 @@ public class ReactiveAgent implements ReactiveBehavior {
                 state.reward.forEach((action, reward) -> {
                     final int[] expectedNextValue = {0};
 
-                    state.transitionTable.get(action).forEach((nextState, p) -> {
-                        expectedNextValue[0] += p * values.get(nextState);
-                    });
+                    state.transitionTable.get(action).forEach(
+                            (nextState, p) -> expectedNextValue[0] += p * values.get(nextState));
 
                     maxValue[0] = Math.max(maxValue[0], reward + discount * expectedNextValue[0]);
                 });
 
                 values.put(state, maxValue[0]);
             });
-        }
+        } while (!goodEnoughValues(values, previousValues));
 
         return values;
     }
@@ -210,34 +206,31 @@ public class ReactiveAgent implements ReactiveBehavior {
 
         public void addToTransitionTable(State state) {
             if (transitionTable.containsKey(state.currentCity)) {
+                double probability;
                 if (taskDestination != null) {
                     if (state.taskDestination != null) {
-                        double probability = td.probability(currentCity, state.currentCity) * td.probability(state.currentCity, state.taskDestination);
-                        transitionTable.get(state.currentCity).put(state, probability);
+                        probability = td.probability(currentCity, state.currentCity) * td.probability(state.currentCity, state.taskDestination);
                     } else {
-                        double probability = td.probability(currentCity, state.currentCity);
-                        for (City city2 : topology.cities()) {
-                            probability *= 1 - td.probability(state.currentCity, city2);
+                        probability = td.probability(currentCity, state.currentCity);
+                        for (City city : topology.cities()) {
+                            probability *= 1 - td.probability(state.currentCity, city);
                         }
-                        transitionTable.get(state.currentCity).put(state, probability);
                     }
                 } else {
                     if (state.taskDestination != null) {
-                        double probability = td.probability(state.currentCity, state.taskDestination);
-                        for (City city2 : topology.cities()) {
-                            probability *= 1 - td.probability(currentCity, city2);
+                        probability = td.probability(state.currentCity, state.taskDestination);
+                        for (City city : topology.cities()) {
+                            probability *= 1 - td.probability(currentCity, city);
                         }
-                        transitionTable.get(state.currentCity).put(state, probability);
                     } else {
-                        double probability = 1;
-                        for (City city2 : topology.cities()) {
-                            probability *= 1 - td.probability(currentCity, city2);
-                            probability *= 1 - td.probability(state.currentCity, city2);
+                        probability = 1;
+                        for (City city : topology.cities()) {
+                            probability *= 1 - td.probability(currentCity, city);
+                            probability *= 1 - td.probability(state.currentCity, city);
                         }
-                        transitionTable.get(state.currentCity).put(state, probability);
                     }
                 }
-
+                transitionTable.get(state.currentCity).put(state, probability);
             }
         }
 
