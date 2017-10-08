@@ -22,6 +22,7 @@ public class ReactiveAgent implements ReactiveBehavior {
     private int costPerKilometer;
     private TaskDistribution td;
     private Topology topology;
+    private Map<State, City> strategy;
 
     private LinkedList<State> states;
 
@@ -59,17 +60,27 @@ public class ReactiveAgent implements ReactiveBehavior {
         this.pPickup = discount;
         this.numActions = 0;
         this.myAgent = agent;
+
+        // Compute strategy
+        Map<State, Double> stateValues = learnValues(states, discount);
+        this.strategy = computeStrategy(stateValues, discount);
+
+        System.out.println(this.strategy.size());
     }
 
     @Override
     public Action act(Vehicle vehicle, Task availableTask) {
         Action action;
 
-        if (availableTask == null) {
-            City currentCity = vehicle.getCurrentCity();
-            action = new Move(currentCity.randomNeighbor(random));
+        // Create current state (equals has been overriden to compare it in the strategy)
+        City taskDestination = availableTask == null ? null : availableTask.deliveryCity;
+        State currentState = new State(vehicle.getCurrentCity(), taskDestination);
+
+        City nextCity = strategy.get(currentState);
+
+        if (availableTask == null || taskDestination != nextCity) {
+            action = new Move(nextCity);
         } else {
-            //todo:
             action = new Pickup(availableTask);
         }
 
@@ -81,12 +92,44 @@ public class ReactiveAgent implements ReactiveBehavior {
         return action;
     }
 
+    private Map<State, City> computeStrategy(Map<State, Double> stateValues, double learningFactor) {
+        Map<State, City> strategy = new HashMap<>();
+
+        stateValues.forEach((state, value) -> {
+            final City[] bestAction = {null};
+            final double[] bestValue = {Double.NEGATIVE_INFINITY};
+
+            state.transitionTable.forEach((taskDestination, probabilities) -> {
+                final double[] expectedValue = {0};
+                probabilities.forEach((nextState, p) -> {
+                    expectedValue[0] += p * stateValues.get(nextState);
+                });
+
+                expectedValue[0] = state.reward.get(taskDestination) + learningFactor * expectedValue[0];
+
+                if (expectedValue[0] > bestValue[0]) {
+                    bestValue[0] = expectedValue[0];
+                    bestAction[0] = taskDestination;
+                }
+            });
+
+            strategy.put(state, bestAction[0]);
+        });
+
+        return strategy;
+    }
+
 	private Map<State, Double> learnValues(List<State> states, double discount) {
 		Map<State, Double> values = new HashMap<>();
 		Map<State, Double> previousValues = new HashMap<>();
 
+		for (State s : states) {
+		    values.put(s, 0.0);
+		    previousValues.put(s, 1000.0);
+        }
+
 		while (!goodEnoughValues(values, previousValues)) {
-			previousValues = new HashMap<>(values);
+            previousValues = new HashMap<>(values);
 
 			// For each state
 			states.forEach(state -> {
@@ -139,6 +182,21 @@ public class ReactiveAgent implements ReactiveBehavior {
             initRewards();
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null || !(obj instanceof State)) return false;
+            if (obj == this) return true;
+
+            State other = (State) obj;
+            return this.currentCity == other.currentCity && this.taskDestination == other.taskDestination;
+        }
+
+        @Override
+        public int hashCode() {
+            return taskDestination == null ? currentCity.hashCode() :
+                    (currentCity.hashCode() ^ taskDestination.hashCode());
+        }
+
         private void initRewards() {
             currentCity.neighbors().forEach(city -> {
                 if (city.equals(taskDestination)) {
@@ -147,7 +205,7 @@ public class ReactiveAgent implements ReactiveBehavior {
                     reward.put(city, -currentCity.distanceTo(city) * costPerKilometer);
                 }
             });
-            if (!reward.containsKey(taskDestination)) {
+            if (taskDestination != null && !reward.containsKey(taskDestination)) {
                 reward.put(taskDestination, td.reward(currentCity, taskDestination) - currentCity.distanceTo(taskDestination) * costPerKilometer);
             }
         }
