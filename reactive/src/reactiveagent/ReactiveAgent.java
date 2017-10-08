@@ -97,9 +97,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
             state.transitionTable.forEach((taskDestination, probabilities) -> {
                 final double[] expectedValue = {0};
-                probabilities.forEach((nextState, p) -> {
-                    expectedValue[0] += p * stateValues.get(nextState);
-                });
+                probabilities.forEach((nextState, p) -> expectedValue[0] += p * stateValues.get(nextState));
 
                 expectedValue[0] = state.reward.get(taskDestination) + learningFactor * expectedValue[0];
 
@@ -164,16 +162,18 @@ public class ReactiveAgent implements ReactiveBehavior {
             this(current, dest, false);
         }
 
-        public State(City current, City dest, Boolean withRewards) {
+        public State(City current, City dest, boolean withRewards) {
             currentCity = current;
             taskDestination = dest;
-            reward = new HashMap<>();
-            transitionTable = new HashMap<>();
-            currentCity.neighbors().forEach(city -> transitionTable.put(city, new HashMap<>()));
-            if (taskDestination != null && !transitionTable.containsKey(taskDestination)) {
-                transitionTable.put(taskDestination, new HashMap<>());
+            if (withRewards) {
+                reward = new HashMap<>();
+                transitionTable = new HashMap<>();
+                currentCity.neighbors().forEach(city -> transitionTable.put(city, new HashMap<>()));
+                if (taskDestination != null && !transitionTable.containsKey(taskDestination)) {
+                    transitionTable.put(taskDestination, new HashMap<>());
+                }
+                initRewards();
             }
-            if (withRewards) initRewards();
         }
 
         @Override
@@ -205,6 +205,8 @@ public class ReactiveAgent implements ReactiveBehavior {
         }
 
         public void addToTransitionTable(State state) {
+            // if this doesn't apply it means we're trying to add an impossible transition
+            // what is possible is either a neighbour of the city, or the destination of its available task
             if (transitionTable.containsKey(state.currentCity)) {
                 double probability;
                 if (taskDestination != null) {
