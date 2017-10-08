@@ -11,43 +11,41 @@ import logist.task.TaskDistribution;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 public class ReactiveAgent implements ReactiveBehavior {
 
-    private Random random;
-    private double pPickup;
-    private int numActions;
-    private Agent myAgent;
-    private int costPerKilometer;
     private TaskDistribution td;
     private Topology topology;
+    private Agent myAgent;
+    private int numActions;
+    private int costPerKilometer;
     private Map<State, City> strategy;
-
-    private LinkedList<State> states;
 
     @Override
     public void setup(Topology topology, TaskDistribution td, Agent agent) {
 
         // Reads the discount factor from the agents.xml file.
         // If the property is not present it defaults to 0.95
-        Double discount = agent.readProperty("discount-factor", Double.class,
-                0.95);
+        Double discount = agent.readProperty("discount-factor", Double.class, 0.95);
 
-        costPerKilometer = agent.vehicles().get(0).costPerKm();
-
+        // picked from first vehicle and used to generate strategy
+        this.costPerKilometer = agent.vehicles().get(0).costPerKm();
         this.topology = topology;
         this.td = td;
 
-        states = new LinkedList<>();
+        LinkedList<State> states = new LinkedList<>();
 
         for (City city1 : topology.cities()) {
             for (City city2 : topology.cities()) {
                 if (city2.equals(city1)) continue;
 
-                states.add(new State(city1, city2));
+                states.add(new State(city1, city2, true));
             }
-            states.add(new State(city1, null));
+            states.add(new State(city1, null, true));
         }
 
         for (State state1 : states) {
@@ -56,16 +54,12 @@ public class ReactiveAgent implements ReactiveBehavior {
             }
         }
 
-        this.random = new Random();
-        this.pPickup = discount;
         this.numActions = 0;
         this.myAgent = agent;
 
         // Compute strategy
         Map<State, Double> stateValues = learnValues(states, discount);
         this.strategy = computeStrategy(stateValues, discount);
-
-        System.out.println(this.strategy.size());
     }
 
     @Override
@@ -119,50 +113,50 @@ public class ReactiveAgent implements ReactiveBehavior {
         return strategy;
     }
 
-	private Map<State, Double> learnValues(List<State> states, double discount) {
-		Map<State, Double> values = new HashMap<>();
-		Map<State, Double> previousValues = new HashMap<>();
+    private Map<State, Double> learnValues(List<State> states, double discount) {
+        Map<State, Double> values = new HashMap<>();
+        Map<State, Double> previousValues = new HashMap<>();
 
-		for (State s : states) {
-		    values.put(s, 0.0);
-		    previousValues.put(s, 1000.0);
+        for (State s : states) {
+            values.put(s, 0.0);
+            previousValues.put(s, 1000.0);
         }
 
-		while (!goodEnoughValues(values, previousValues)) {
+        while (!goodEnoughValues(values, previousValues)) {
             previousValues = new HashMap<>(values);
 
-			// For each state
-			states.forEach(state -> {
-				final double[] maxValue = {0};
-				// For each action, aka destination city
-				state.reward.forEach((action, reward) -> {
-					final int[] expectedNextValue = {0};
+            // For each state
+            states.forEach(state -> {
+                final double[] maxValue = {0};
+                // For each action, aka destination city
+                state.reward.forEach((action, reward) -> {
+                    final int[] expectedNextValue = {0};
 
-					state.transitionTable.get(action).forEach((nextState, p) -> {
-						expectedNextValue[0] += p * values.get(nextState);
-					});
+                    state.transitionTable.get(action).forEach((nextState, p) -> {
+                        expectedNextValue[0] += p * values.get(nextState);
+                    });
 
-					maxValue[0] = Math.max(maxValue[0], reward + discount * expectedNextValue[0]);
-				});
+                    maxValue[0] = Math.max(maxValue[0], reward + discount * expectedNextValue[0]);
+                });
 
-				values.put(state, maxValue[0]);
-			});
-		}
+                values.put(state, maxValue[0]);
+            });
+        }
 
-		return values;
-	}
+        return values;
+    }
 
-	private boolean goodEnoughValues(Map<State, Double> current, Map<State, Double> previous) {
-		double delta = 1;
+    private boolean goodEnoughValues(Map<State, Double> current, Map<State, Double> previous) {
+        double delta = 1;
 
-		for (Map.Entry<State, Double> entry : current.entrySet()) {
-			if (Math.abs(entry.getValue() - previous.get(entry.getKey())) > delta) {
-				return false;
-			}
-		}
+        for (Map.Entry<State, Double> entry : current.entrySet()) {
+            if (Math.abs(entry.getValue() - previous.get(entry.getKey())) > delta) {
+                return false;
+            }
+        }
 
-		return true;
-	}
+        return true;
+    }
 
     public class State {
         public City currentCity;
@@ -171,6 +165,10 @@ public class ReactiveAgent implements ReactiveBehavior {
         public HashMap<City, HashMap<State, Double>> transitionTable;
 
         public State(City current, City dest) {
+            this(current, dest, false);
+        }
+
+        public State(City current, City dest, Boolean withRewards) {
             currentCity = current;
             taskDestination = dest;
             reward = new HashMap<>();
@@ -179,7 +177,7 @@ public class ReactiveAgent implements ReactiveBehavior {
             if (taskDestination != null && !transitionTable.containsKey(taskDestination)) {
                 transitionTable.put(taskDestination, new HashMap<>());
             }
-            initRewards();
+            if (withRewards) initRewards();
         }
 
         @Override
