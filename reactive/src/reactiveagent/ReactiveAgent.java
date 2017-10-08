@@ -141,7 +141,7 @@ public class ReactiveAgent implements ReactiveBehavior {
     }
 
     private boolean goodEnoughValues(Map<State, Double> current, Map<State, Double> previous) {
-        double delta = 1;
+        double delta = 0.1;
 
         for (Map.Entry<State, Double> entry : current.entrySet()) {
             if (Math.abs(entry.getValue() - previous.get(entry.getKey())) > delta) {
@@ -208,30 +208,7 @@ public class ReactiveAgent implements ReactiveBehavior {
             // if this doesn't apply it means we're trying to add an impossible transition
             // what is possible is either a neighbour of the city, or the destination of its available task
             if (transitionTable.containsKey(state.currentCity)) {
-                double probability;
-                if (taskDestination != null) {
-                    if (state.taskDestination != null) {
-                        probability = td.probability(currentCity, state.currentCity) * td.probability(state.currentCity, state.taskDestination);
-                    } else {
-                        probability = td.probability(currentCity, state.currentCity);
-                        for (City city : topology.cities()) {
-                            probability *= 1 - td.probability(state.currentCity, city);
-                        }
-                    }
-                } else {
-                    if (state.taskDestination != null) {
-                        probability = td.probability(state.currentCity, state.taskDestination);
-                        for (City city : topology.cities()) {
-                            probability *= 1 - td.probability(currentCity, city);
-                        }
-                    } else {
-                        probability = 1;
-                        for (City city : topology.cities()) {
-                            probability *= 1 - td.probability(currentCity, city);
-                            probability *= 1 - td.probability(state.currentCity, city);
-                        }
-                    }
-                }
+                double probability = td.probability(currentCity, taskDestination) * td.probability(state.currentCity, state.taskDestination);
                 transitionTable.get(state.currentCity).put(state, probability);
             }
         }
