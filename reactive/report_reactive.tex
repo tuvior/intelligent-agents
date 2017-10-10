@@ -83,9 +83,13 @@ The result of this final step is a strategy of the form \textit{Map<State, City>
 
 \subsubsection{Setting}
 % you describe how you perform the experiment (you also need to specify the configuration used for the experiment)
+For a given topology and convergence threshold, we change the value of the discount factor in order to understand the influence on the computations and results. We try the following values: 0.9, 0.5 and 0.1.
 
 \subsubsection{Observations}
 % you describe the experimental results and the conclusions you inferred from these results
+The results are quite surprising. Indeed, playing with the discount factor does not induce any significant changes in the results. The average profit converges at around 38000 for three cases and we cannot notice where does the discount factor play a from the results. We can explain it because the optimal solution is reached very quickly in any case.
+
+However, we can see that the convergence changes a little. The value iteration algorithm takes longer to converge with a learning rate close to 1, and so fewer iterations to get an optimal value with a small discount. This is due to the fact that we include more learning in the iterations, and then values tend to vary a bit more before reaching an optimal solution. However, we are still guaranteed in any case to get a bounded error with any value of the learning rate.
 
 \subsection{Experiment 2: Comparisons with dummy agents}
 % you compare the results of your agent with two dummy agents: the random agent that was already given in the starter files and another dummy agent that you define and create. You should report the results from the simulations using the topologies given in the starter files and optionally, additional topologies that you create.
@@ -107,14 +111,5 @@ Observations will be based on the average \textit{Reward} after 2000 actions, us
 As it would be expected, the agent that takes actions at random comes out as the worst, as nothing is made to optimize decisions. The small gap between the other two agents is interesting, the second dummy agent is minimizing loss by always taking short movements when non delivering a \textit{Task}, and "maximising" profit by always taking a \textit{Task} when possible. 
 
 This confirms to us that having an agent that sometimes refuses a \textit{Task} by following a prebuilt strategy will indeed allow for an improved performance over just maximizing instantaneous profit.
-
-\vdots
-
-\subsection{Experiment n}
-% other experiments you would like to present
-
-\subsubsection{Setting}
-
-\subsubsection{Observations}
 
 \end{document}
