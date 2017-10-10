@@ -20,7 +20,7 @@
 \subsection{Representation Description}
 % describe how you design the state representation, the possible actions, the reward table and the probability transition table
 \subsubsection{State Representation}
-In order to take a decision for the next destination, it makes sense to take into account the current position and if there is an available task or not. This allows to clearly distinguish if it is worth it to take the task, and if not where to go next. In this direction, our internal state representation is the following: \textit{S = (Current city, Task destination)}. If the task destination is \textit{null}, then there is the current city does not offer any task.
+In order to take a decision for the next destination, it makes sense to take into account the current position and if there is an available task or not. This allows to clearly distinguish if it is worth it to take the task, and if not where to go next. In this direction, our internal state representation is the following: \textit{S = (Current city, Task destination)}. If the task destination is \textit{null}, then the current city does not offer any task.
 
 \subsubsection{Actions}
 There are several possible actions depending on the state. 
