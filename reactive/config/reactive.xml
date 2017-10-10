@@ -39,7 +39,7 @@
 				<set cost-per-km="5" />
 			</vehicle>
 		</company>
-		
+
 		<company name="Company B">
 			<!-- the second vehicle (red) -->
 			<vehicle name="Vehicle 2">
@@ -72,7 +72,7 @@
 				<set cost-per-km="5" />
 			</vehicle>
 		</company>
-		
+
 		<company name="Company E">
 			<!-- the fifth vehicle (magenta) -->
 			<vehicle name="Vehicle 5">
@@ -83,7 +83,7 @@
 				<set cost-per-km="5" />
 			</vehicle>
 		</company>
-		
+
 		<company name="Company F">
 			<!-- the sixth vehicle (cyan) -->
 			<vehicle name="Vehicle 6">

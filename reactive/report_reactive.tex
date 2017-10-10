@@ -91,10 +91,22 @@ The result of this final step is a strategy of the form \textit{Map<State, City>
 % you compare the results of your agent with two dummy agents: the random agent that was already given in the starter files and another dummy agent that you define and create. You should report the results from the simulations using the topologies given in the starter files and optionally, additional topologies that you create.
 
 \subsubsection{Setting}
-% you describe how you perform the experiment and you describe the dummy agent you created (you also need to specify the configuration used for the experiment)
-
+This experiment is done using $0.99$ as discount factor for the reactive agent.
+The second dummy agent we will be testing works as follows: if a \textit{Task} is available, take it, otherwise move to the nearest \textit{City}.
+Observations will be based on the average \textit{Reward} after 2000 actions, using the same seed for all 3 agents.
 \subsubsection{Observations}
 % elaborate on the observed results
+
+\textbf{Random Agent}:
+\textit{The total profit after $2000$ actions is $63,553,861$ (average profit: $31,776.9305$)}\\
+\textbf{Yes Agent}:
+\textit{The total profit after $2000$ actions is $73,620,955$ (average profit: $36,810.4775$)}\\
+\textbf{Reactive Agent}:
+\textit{The total profit after $2000$ actions is $76,526,797$ (average profit: $38,263.3985$)}\\
+
+As it would be expected, the agent that takes actions at random comes out as the worst, as nothing is made to optimize decisions. The small gap between the other two agents is interesting, the second dummy agent is minimizing loss by always taking short movements when non delivering a \textit{Task}, and "maximising" profit by always taking a \textit{Task} when possible. 
+
+This confirms to us that having an agent that sometimes refuses a \textit{Task} by following a prebuilt strategy will indeed allow for an improved performance over just maximizing instantaneous profit.
 
 \vdots
 
