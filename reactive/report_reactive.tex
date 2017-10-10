@@ -65,7 +65,14 @@ The main class is the \textit{State class}, containing the following fields:
 
 \subsubsection{Reinforcement Learning Algorithm}
 
+The learning algorithm works in 3 steps.
 
+In the first step a list of all possible states is generated, each state will be populated itself with the list of states, this allows the transition tables to contain pointers to other state, making it so that no lookup will be needed in the next steps.
+
+The second step will calculate the \textit{Value} for each state iteratively. We traverse the state list in a nested loop, updating each state's value with the discounted expected value obtained by performing a transition. This operation is performed until all values reach a stable point.
+
+In the last step an optimal strategy will be generated based on the previously computed values. Once more we iterate through all states and for each of these we map a \textit{City}, which represents the best action that can be taken in the current state to maximise profit.
+The result of this final step is a strategy of the form \textit{Map<State, City>}, which can be used by the agent to fetch the next action to be taken directly.
 
 
 \section{Results}
