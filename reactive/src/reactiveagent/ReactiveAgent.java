@@ -122,7 +122,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
             // For each state
             states.forEach(state -> {
-                final double[] maxValue = {0};
+                final double[] maxValue = {Double.NEGATIVE_INFINITY};
                 // For each action, aka destination city
                 state.reward.forEach((action, reward) -> {
                     final int[] expectedNextValue = {0};
