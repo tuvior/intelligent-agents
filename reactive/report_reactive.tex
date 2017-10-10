@@ -1,5 +1,6 @@
 \documentclass[11pt]{article}
 
+\usepackage[T1]{fontenc}
 \usepackage{amsmath}
 \usepackage{textcomp}
 \usepackage[top=0.8in, bottom=0.8in, left=0.8in, right=0.8in]{geometry}
@@ -7,7 +8,7 @@
 
 % put your group number and names in the author field
 \title{\bf Exercise 2: A Reactive Agent for the Pickup and Delivery Problem}
-\author{Group \textnumero: Student 1, Student 2}
+\author{Group \textnumero1: Tobias Bordenca, Paul Nicolet}
 
 % the report should not be longer than 3 pages
 
@@ -19,7 +20,7 @@
 \subsection{Representation Description}
 % describe how you design the state representation, the possible actions, the reward table and the probability transition table
 \subsubsection{State Representation}
-In order to take a decision for the next destination, it makes sense to take into account the current position and if there is an available task or not. This allows to clearly distinguish if it is worth it to take the task, and if not where to go next. In this direction, our internal state representation is the following: \textit{S = (Current city, Task destination)}. If the task destination is \textit{null}, then there is the current state does not contain any task.
+In order to take a decision for the next destination, it makes sense to take into account the current position and if there is an available task or not. This allows to clearly distinguish if it is worth it to take the task, and if not where to go next. In this direction, our internal state representation is the following: \textit{S = (Current city, Task destination)}. If the task destination is \textit{null}, then there is the current city does not offer any task.
 
 \subsubsection{Actions}
 There are several possible actions depending on the state. 
@@ -50,15 +51,20 @@ Given a current state, an action and the next state, the transition probabilitie
 \subsection{Implementation Details}
 % describe the implementation details of the representations above and the implementation details of the reinforcement learning algorithm you implemented
 \subsubsection{Internal Representation}
+One important thing to note in our representation is that we represent \textit{Actions} as \textit{Cities}, as the corresponding action, be it \textit{Pickup} or \textit{Move} can be inferred by the state. Doing this allows to create more direct mappings in our data structures.
+\\
+\\
 The main class is the \textit{State class}, containing the following fields: 
 \begin{itemize}
 	\item \textit{currentCity} the state current city
-	\item \textit{taskDestination} the task destination city, or \textit{null} if no task
+	\item \textit{taskDestination} the available task destination city, or \textit{null} if no task available
 	\item \textit{reward} the reward table for the state as \textit{Map<City, Double>} mapping an action to the reward
-	\item \textit{transitionTable} the transition table for the state as \textit{Map<City, HashMap<State, Double>>} mapping an action to the next state to the probability
+	\item \textit{transitionTable} the transition table for the state as \textit{Map<City, HashMap<State, Double>{}>} mapping an action to the next state and its corresponding probability
 \end{itemize}
 
 \subsubsection{Reinforcement Learning Algorithm}
+
+
 
 
 \section{Results}
