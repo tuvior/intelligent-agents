@@ -2,6 +2,7 @@
 
 \usepackage[T1]{fontenc}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{textcomp}
 \usepackage[top=0.8in, bottom=0.8in, left=0.8in, right=0.8in]{geometry}
 % add other packages here
@@ -20,7 +21,7 @@
 \subsection{Representation Description}
 % describe how you design the state representation, the possible actions, the reward table and the probability transition table
 \subsubsection{State Representation}
-In order to take a decision for the next destination, it makes sense to take into account the current position and if there is an available task or not. This allows to clearly distinguish if it is worth it to take the task, and if not where to go next. In this direction, our internal state representation is the following: \textit{S = (Current city, Task destination)}. If the task destination is \textit{null}, then the current city does not offer any task.
+In order to take a decision for the next destination, it makes sense to take into account the current position and if there is an available task or not. This allows to clearly distinguish if it is worth it to take the task, and if not where to go next. In this direction, our internal state representation is the following: \textit{S = (Current city, Task destination)}. If the task destination is $\varnothing$, then the current city does not offer any task.
 
 \subsubsection{Actions}
 There are several possible actions depending on the state. 
@@ -32,18 +33,18 @@ If the current state does not contain a task, then all the possible actions are 
 \subsubsection{Rewards}
 Given a state and an action, the reward is computed as follows:
 \begin{itemize}
-	\item \textit{R((City A, null), (Move to B)) = - Cost(A, B)} if there is no task
-	\item \textit{R(City A, City B), (Move to B) = Gain(Task(A, B)) - Cost(A, B)} if there is a task and we decide to deliver it
-	\item \textit{R(City A, City B), (Move to C) =  - Cost(A, C)} if there is a task and we decide to not deliver it
+	\item \textit{R((City A, $\varnothing$), (Move to B)) = - Cost(A, B)} if there is no task
+	\item \textit{R((City A, City B), (Move to B)) = Gain(Task(A, B)) - Cost(A, B)} if there is a task and we decide to deliver it
+	\item \textit{R((City A, City B), (Move to C)) =  - Cost(A, C)} if there is a task and we decide to not deliver it
 \end{itemize}
 
 \subsubsection{Transitions}
 Given a current state, an action and the next state, the transition probabilities are computed as follows, considering that \textit{1 - p(A) = (1 - p(A, B)) * (1 - p(A, C)) * ...} is equal to the probability that there is no task at city A:
 \begin{itemize}
-	\item \textit{T((City A, null), (Move to B), (City B, null)) = (1 - p(A)) * (1 - p(B))}, if B is neighbour
-	\item \textit{T((City A, City B), (Move to B), (City B, null)) = p(A, B) * (1 - p(B))}, when we pick the task
+	\item \textit{T((City A, $\varnothing$), (Move to B), (City B, $\varnothing$)) = (1 - p(A)) * (1 - p(B))}, if B is neighbour
+	\item \textit{T((City A, City B), (Move to B), (City B, $\varnothing$)) = p(A, B) * (1 - p(B))}, when we pick the task
 	\item \textit{T((City A, City B), (Move to B), (City B, City C)) = p(A, B) * p(B, C)}, when we pick the task
-	\item \textit{T((City A, City B), (Move to C), (City C, null)) = p(A, B) * (1 - p(C))}, when we don't pick the task, if C is neighbour
+	\item \textit{T((City A, City B), (Move to C), (City C, $\varnothing$)) = p(A, B) * (1 - p(C))}, when we don't pick the task, if C is neighbour
 	\item \textit{T((City A, City B), (Move to C), (City C, City D)) = p(A, B) * p(C, D)}, when we don't pick the task, if C is neighbour
 	\item \textit{T((City A, *), (Move to C), (City C, *)) = 0} if C is not neighbour, or if the action does does not correspond to the arrival city
 \end{itemize}
