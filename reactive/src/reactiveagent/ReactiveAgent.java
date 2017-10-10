@@ -93,7 +93,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
         stateValues.forEach((state, value) -> {
             final City[] bestAction = {null};
-            final double[] bestValue = {Double.NEGATIVE_INFINITY};
+            final double[] bestValue = {Double.MIN_VALUE};
 
             state.transitionTable.forEach((taskDestination, probabilities) -> {
                 final double[] expectedValue = {0};
@@ -114,7 +114,7 @@ public class ReactiveAgent implements ReactiveBehavior {
     }
 
     private Map<State, Double> learnValues(List<State> states, double discount) {
-        Map<State, Double> values = states.stream().collect(Collectors.toMap(s -> s, s -> Double.NEGATIVE_INFINITY));
+        Map<State, Double> values = states.stream().collect(Collectors.toMap(s -> s, s -> Double.MIN_VALUE));
         Map<State, Double> previousValues;
 
         do {
@@ -122,7 +122,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
             // For each state
             states.forEach(state -> {
-                final double[] maxValue = {Double.NEGATIVE_INFINITY};
+                final double[] maxValue = {Double.MIN_VALUE};
                 // For each action, aka destination city
                 state.reward.forEach((action, reward) -> {
                     final int[] expectedNextValue = {0};
