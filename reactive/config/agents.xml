@@ -12,7 +12,7 @@
 	<agent name="reactive-agent">
         <set class-path="bin/"/>
         <set class-name="reactiveagent.ReactiveAgent"/>
-        <set discount-factor=".99"/>
+        <set discount-factor=".01"/>
     </agent>
     <agent name="yes-agent">
         <set class-path="bin/"/>

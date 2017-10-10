@@ -93,7 +93,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
         stateValues.forEach((state, value) -> {
             final City[] bestAction = {null};
-            final double[] bestValue = {Double.MIN_VALUE};
+            final double[] bestValue = {-Double.MAX_VALUE};
 
             state.transitionTable.forEach((taskDestination, probabilities) -> {
                 final double[] expectedValue = {0};
@@ -114,7 +114,7 @@ public class ReactiveAgent implements ReactiveBehavior {
     }
 
     private Map<State, Double> learnValues(List<State> states, double discount) {
-        Map<State, Double> values = states.stream().collect(Collectors.toMap(s -> s, s -> Double.MIN_VALUE));
+        Map<State, Double> values = states.stream().collect(Collectors.toMap(s -> s, s -> -Double.MAX_VALUE));
         Map<State, Double> previousValues;
 
         do {
@@ -122,7 +122,7 @@ public class ReactiveAgent implements ReactiveBehavior {
 
             // For each state
             states.forEach(state -> {
-                final double[] maxValue = {Double.MIN_VALUE};
+                final double[] maxValue = {-Double.MAX_VALUE};
                 // For each action, aka destination city
                 state.reward.forEach((action, reward) -> {
                     final int[] expectedNextValue = {0};
@@ -133,6 +133,8 @@ public class ReactiveAgent implements ReactiveBehavior {
                     maxValue[0] = Math.max(maxValue[0], reward + discount * expectedNextValue[0]);
                 });
 
+                System.out.println(maxValue[0]);
+
                 values.put(state, maxValue[0]);
             });
         } while (!goodEnoughValues(values, previousValues));
@@ -141,7 +143,7 @@ public class ReactiveAgent implements ReactiveBehavior {
     }
 
     private boolean goodEnoughValues(Map<State, Double> current, Map<State, Double> previous) {
-        double delta = 0.1;
+        double delta = 0.001;
 
         for (Map.Entry<State, Double> entry : current.entrySet()) {
             if (Math.abs(entry.getValue() - previous.get(entry.getKey())) > delta) {
