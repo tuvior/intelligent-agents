@@ -12,6 +12,8 @@ import logist.task.TaskSet;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -93,12 +95,64 @@ public class DeliberativeAgent implements DeliberativeBehavior {
         public City agentPosition;
         public Action parentAction;
         public double weightCarried;
+        public double cost;
+        public int level;
 
         public Set<Task> tasksCarried;
         public Set<Task> tasksAvailable;
 
         public Node parent;
         public Node next;
+
+        public Node(City positon , Node parent, Action action, Vehicle vehicle) {
+            this(positon, parent, action, null, vehicle);
+        }
+
+        public Node(City positon , Node parent, Action action, Task toProcess, Vehicle vehicle) {
+            agentPosition = positon;
+            this.parent = parent;
+            parentAction = action;
+            cost = parent.cost;
+            level = parent.level++;
+            tasksAvailable = new HashSet<>(parent.tasksAvailable);
+            tasksCarried = new HashSet<>(parent.tasksCarried);
+
+
+            switch(action) {
+                case MOVE:
+                    cost += parent.agentPosition.distanceTo(agentPosition) * vehicle.costPerKm();
+                case PICKUP:
+                    tasksAvailable.remove(toProcess);
+                    tasksCarried.add(toProcess);
+                    weightCarried += toProcess.weight;
+                case DELIVER:
+                    tasksCarried.remove(toProcess);
+                    weightCarried -= toProcess.weight;
+
+            }
+        }
+
+        public List<Node> getSuccessors(Vehicle vehicle){
+            boolean canMove = true;
+            ArrayList<Node> successors = new ArrayList<>();
+            for (Task t : tasksCarried) {
+                if (t.deliveryCity.equals(agentPosition)) {
+                    successors.add(new Node(agentPosition, this, Action.DELIVER, t, vehicle));
+                    canMove = false;
+                }
+            }
+            for (Task t : tasksAvailable) {
+                if (t.pickupCity.equals(agentPosition)) {
+                    successors.add(new Node(agentPosition, this, Action.PICKUP, t, vehicle));
+                }
+            }
+            if (canMove) {
+                for (City c : agentPosition.neighbors()) {
+                    successors.add(new Node(c, this, Action.MOVE, vehicle));
+                }
+            }
+            return successors;
+        }
 
         @Override
         public boolean equals(Object o) {
