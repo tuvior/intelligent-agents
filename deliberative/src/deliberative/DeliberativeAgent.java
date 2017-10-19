@@ -60,6 +60,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
     }
 
     private Plan planBFS(Vehicle vehicle, TaskSet tasks) {
+        long start = System.currentTimeMillis();
         Node root = Node.makeRoot(vehicle, tasks);
         Queue<Node> queue = new LinkedList<>();
         HashSet<Node> c = new HashSet<>();
@@ -77,16 +78,22 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                     bestGoal = current;
                 }
             } else {
-                for (Node succ : current.getSuccessors()) {
-                    // only add successors that would still cost lest than our best solution so far
-                    if (bestGoal == null || succ.cost < bestGoal.cost) {
-                        queue.add(succ);
+                if (bestGoal == null || current.cost < bestGoal.cost) {
+                    for (Node succ : current.getSuccessors()) {
+                        // only add successors that would still cost lest than our best solution so far
+                        if (bestGoal == null || succ.cost < bestGoal.cost) {
+                            queue.add(succ);
+                        }
                     }
                 }
 
                 c.add(current);
             }
         }
+
+        long end = System.currentTimeMillis();
+
+        System.out.println("Time: " + (end - start) / 1000 );
 
         if (bestGoal != null) {
             return generatePlanFromGraph(bestGoal, root);
@@ -96,6 +103,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
     }
 
     private Plan planASTAR(Vehicle vehicle, TaskSet tasks) {
+        long start = System.currentTimeMillis();
         Node root = Node.makeRoot(vehicle, tasks);
         Comparator<Node> f;
         switch (heuristic) {
@@ -129,6 +137,11 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                 c.add(current);
             }
         }
+
+
+        long end = System.currentTimeMillis();
+
+        System.out.println("Time: " + (end - start) / 1000 );
 
         if (goal != null) {
             return generatePlanFromGraph(goal, root);
