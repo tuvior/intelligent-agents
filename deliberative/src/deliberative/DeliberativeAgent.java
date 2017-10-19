@@ -12,10 +12,7 @@ import logist.task.TaskSet;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * An optimal planner for one vehicle.
@@ -44,7 +41,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
         this.agent = agent;
 
         // initialize the planner
-        int capacity = agent.vehicles().get(0).capacity();
+        capacity = agent.vehicles().get(0).capacity();
         String algorithmName = agent.readProperty("algorithm", String.class, "ASTAR");
 
         // Throws IllegalArgumentException if algorithm is unknown
@@ -72,6 +69,60 @@ public class DeliberativeAgent implements DeliberativeBehavior {
     }
 
     private Plan planBFS(Vehicle vehicle, TaskSet tasks) {
+        Node root = new Node(vehicle.getCurrentCity(), null, null, vehicle);
+        root.tasksAvailable = new HashSet<>(tasks);
+        Queue<Node> queue = new LinkedList<>();
+        HashSet<Node> c = new HashSet<>();
+        Node bestGoal = null;
+        queue.add(root);
+        c.add(root);
+
+        while(!queue.isEmpty()){
+            Node current = queue.remove();
+
+            if (c.contains(current)) continue;
+
+            if (current.isGoal()) {
+                if (bestGoal == null || current.cost < bestGoal.cost) {
+                    bestGoal = current;
+                }
+            } else {
+                for (Node succ : current.getSuccessors(vehicle)) {
+                    if (bestGoal == null || succ.cost < bestGoal.cost) {
+                        queue.add(succ);
+                    }
+                }
+            }
+
+            c.add(current);
+        }
+
+        if (bestGoal != null) {
+            Plan plan = new Plan(vehicle.getCurrentCity());
+            Node curr = bestGoal;
+
+            while(!curr.equals(root)) {
+                curr.parent.next = curr;
+                curr = curr.parent;
+            }
+
+            while (!curr.equals(bestGoal)) {
+                curr = curr.next;
+                switch (curr.parentAction) {
+                    case MOVE:
+                        plan.appendMove(curr.agentPosition);
+                        break;
+                    case PICKUP:
+                        plan.appendPickup(curr.processedTask);
+                        break;
+                    case DELIVER:
+                        plan.appendDelivery(curr.processedTask);
+                        break;
+                }
+            }
+
+            return plan;
+        }
 
         return null;
     }
@@ -100,6 +151,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 
         public Set<Task> tasksCarried;
         public Set<Task> tasksAvailable;
+        public Task processedTask;
 
         public Node parent;
         public Node next;
@@ -112,23 +164,31 @@ public class DeliberativeAgent implements DeliberativeBehavior {
             agentPosition = positon;
             this.parent = parent;
             parentAction = action;
-            cost = parent.cost;
-            level = parent.level++;
-            tasksAvailable = new HashSet<>(parent.tasksAvailable);
-            tasksCarried = new HashSet<>(parent.tasksCarried);
+            processedTask = toProcess;
+            if (parent == null)  {
+                cost = 0;
+                level = 0;
+            } else {
+                cost = parent.cost;
+                level = parent.level++;
+                tasksAvailable = new HashSet<>(parent.tasksAvailable);
+                tasksCarried = new HashSet<>(parent.tasksCarried);
 
+                switch(action) {
+                    case MOVE:
+                        cost += parent.agentPosition.distanceTo(agentPosition) * vehicle.costPerKm();
+                        break;
+                    case PICKUP:
+                        tasksAvailable.remove(toProcess);
+                        tasksCarried.add(toProcess);
+                        weightCarried += toProcess.weight;
+                        break;
+                    case DELIVER:
+                        tasksCarried.remove(toProcess);
+                        weightCarried -= toProcess.weight;
+                        break;
 
-            switch(action) {
-                case MOVE:
-                    cost += parent.agentPosition.distanceTo(agentPosition) * vehicle.costPerKm();
-                case PICKUP:
-                    tasksAvailable.remove(toProcess);
-                    tasksCarried.add(toProcess);
-                    weightCarried += toProcess.weight;
-                case DELIVER:
-                    tasksCarried.remove(toProcess);
-                    weightCarried -= toProcess.weight;
-
+                }
             }
         }
 
@@ -143,7 +203,9 @@ public class DeliberativeAgent implements DeliberativeBehavior {
             }
             for (Task t : tasksAvailable) {
                 if (t.pickupCity.equals(agentPosition)) {
-                    successors.add(new Node(agentPosition, this, Action.PICKUP, t, vehicle));
+                    if (weightCarried + t.weight <= capacity) {
+                        successors.add(new Node(agentPosition, this, Action.PICKUP, t, vehicle));
+                    }
                 }
             }
             if (canMove) {
@@ -152,6 +214,10 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                 }
             }
             return successors;
+        }
+
+        public boolean isGoal(){
+            return tasksAvailable.isEmpty() && tasksCarried.isEmpty();
         }
 
         @Override
