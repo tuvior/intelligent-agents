@@ -12,7 +12,7 @@
 	<agent name="deliberative-main">
 		<set class-path="bin/"/>
 		<set class-name="deliberative.DeliberativeAgent"/>
-		<set algorithm="BFS"/>
+		<set algorithm="ASTAR"/>
 		<set heuristic="MAXCOST"/>
 	</agent>
 

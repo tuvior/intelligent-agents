@@ -32,13 +32,12 @@ public class DeliberativeAgent implements DeliberativeBehavior {
     @Override
     public void setup(Topology topology, TaskDistribution td, Agent agent) {
         // initialize the planner
-        String algorithmName = agent.readProperty("algorithm", String.class, "ASTAR");
+        String algorithmName = agent.readProperty("algorithm", String.class, "BFS");
         String heuristicName = agent.readProperty("heuristic", String.class, "NONE");
 
         // throws IllegalArgumentException if algorithm or heuristic are unknown
         algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
         heuristic = Heuristic.valueOf(heuristicName.toUpperCase());
-
     }
 
     @Override
@@ -61,11 +60,10 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 
     private Plan planBFS(Vehicle vehicle, TaskSet tasks) {
         long start = System.currentTimeMillis();
-        Node root = Node.makeRoot(vehicle, tasks);
         Queue<Node> queue = new LinkedList<>();
         HashSet<Node> c = new HashSet<>();
         Node bestGoal = null;
-        queue.add(root);
+        queue.add(Node.makeRoot(vehicle, tasks));
 
         while (!queue.isEmpty()) {
             Node current = queue.remove();
@@ -85,9 +83,8 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                             queue.add(succ);
                         }
                     }
+                    c.add(current);
                 }
-
-                c.add(current);
             }
         }
 
@@ -96,7 +93,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
         System.out.println("Time: " + (end - start) / 1000 );
 
         if (bestGoal != null) {
-            return generatePlanFromGraph(bestGoal, root);
+            return generatePlanFromGraph(bestGoal);
         }
 
         return null;
@@ -104,7 +101,6 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 
     private Plan planASTAR(Vehicle vehicle, TaskSet tasks) {
         long start = System.currentTimeMillis();
-        Node root = Node.makeRoot(vehicle, tasks);
         Comparator<Node> f;
         switch (heuristic) {
             case MAXCOST:
@@ -115,13 +111,12 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                 break;
             default:
                 throw new AssertionError("Should not happen.");
-
         }
         // this queue keeps itself sorted on the given f
         PriorityQueue<Node> queue = new PriorityQueue<>(10, f);
         HashSet<Node> c = new HashSet<>();
         Node goal = null;
-        queue.add(root);
+        queue.add(Node.makeRoot(vehicle, tasks));
 
         while (!queue.isEmpty()) {
             Node current = queue.remove();
@@ -144,22 +139,23 @@ public class DeliberativeAgent implements DeliberativeBehavior {
         System.out.println("Time: " + (end - start) / 1000 );
 
         if (goal != null) {
-            return generatePlanFromGraph(goal, root);
+            return generatePlanFromGraph(goal);
         }
 
         System.out.println("???");
         return null;
     }
 
-    private Plan generatePlanFromGraph(Node goal, Node root) {
-        Plan plan = new Plan(root.agentPosition);
+    private Plan generatePlanFromGraph(Node goal) {
         Node curr = goal;
 
         // we go back up to the root while leaving breadcrumbs to be able to recreate the optimal solution
-        while (curr != root) {
+        while (curr.parent != null) {
             curr.parent.next = curr;
             curr = curr.parent;
         }
+
+        Plan plan = new Plan(curr.agentPosition);
 
         while (curr != goal) {
             curr = curr.next;
@@ -180,19 +176,19 @@ public class DeliberativeAgent implements DeliberativeBehavior {
         return plan;
     }
 
-    public static class Node {
+
+    private static class Node {
         public City agentPosition;
         public Action generatingAction;
-        public double weightCarried;
-        public double cost;
-        public Vehicle vehicle;
-
-        public Set<Task> tasksCarried;
-        public Set<Task> tasksAvailable;
-        public Task processedTask;
-
         public Node parent;
         public Node next;
+
+        private Vehicle vehicle;
+        private int weightCarried;
+        private double cost;
+        private Set<Task> tasksCarried;
+        private Set<Task> tasksAvailable;
+        private Task processedTask;
 
         // generates a root for the search tree
         public static Node makeRoot(Vehicle vehicle, TaskSet taskSet) {
@@ -207,7 +203,8 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 
             // these two are useful only with more agents running, since a replan can have carried tasks
             this.tasksCarried = new HashSet<>(vehicle.getCurrentTasks());
-            this.weightCarried = tasksCarried.stream().mapToDouble(t -> t.weight).sum();
+            this.weightCarried = tasksCarried.stream().mapToInt(t -> t.weight).sum();
+            System.out.println(this.weightCarried);
         }
 
         private Node(City position, Node parent, Action action, Vehicle vehicle) {
@@ -223,6 +220,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
             this.cost = parent.cost;
             this.tasksAvailable = new HashSet<>(parent.tasksAvailable);
             this.tasksCarried = new HashSet<>(parent.tasksCarried);
+            this.weightCarried = parent.weightCarried;
 
             // state updates are inferred from the action that lead to it
             switch (action) {
@@ -243,13 +241,15 @@ public class DeliberativeAgent implements DeliberativeBehavior {
         }
 
         public List<Node> getSuccessors() {
-            // we generate moves from this state only when no task could be delivered at current position
-            boolean canMove = tasksCarried.stream().noneMatch(t -> t.deliveryCity.equals(agentPosition));
+            // we generate moves from this state only when no task could be delivered or picked up
+            boolean canMove = tasksCarried.stream().noneMatch(t -> t.deliveryCity.equals(agentPosition)) &&
+                              tasksAvailable.stream().noneMatch(t -> t.pickupCity.equals(agentPosition) && weightCarried + t.weight <= vehicle.capacity());
             ArrayList<Node> successors = new ArrayList<>();
 
             for (Task t : tasksCarried) {
                 if (t.deliveryCity.equals(agentPosition)) {
                     successors.add(new Node(agentPosition, this, Action.DELIVER, t, vehicle));
+                    return successors; // always return only 1 delivery, no need to branch out delivery order for same city
                 } else if (canMove) {
                     successors.add(new Node(t.deliveryCity, this, Action.MOVE, vehicle));
                 }
@@ -259,6 +259,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                 if (t.pickupCity.equals(agentPosition)) {
                     if (weightCarried + t.weight <= vehicle.capacity()) {
                         successors.add(new Node(agentPosition, this, Action.PICKUP, t, vehicle));
+                        return successors; // same as delivery
                     }
                 } else if (canMove) {
                     successors.add(new Node(t.pickupCity, this, Action.MOVE, vehicle));
@@ -289,7 +290,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
 
             // this allows less costly nodes to not be recognized as cycles when testing with HashSet#contains
             if (cost < node.cost) return false;
-            if (Double.compare(node.weightCarried, weightCarried) != 0) return false;
+            if (node.weightCarried != weightCarried) return false;
             if (!agentPosition.equals(node.agentPosition)) return false;
             if (!tasksCarried.equals(node.tasksCarried)) return false;
             return tasksAvailable.equals(node.tasksAvailable);
