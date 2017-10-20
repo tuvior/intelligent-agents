@@ -204,7 +204,6 @@ public class DeliberativeAgent implements DeliberativeBehavior {
             // these two are useful only with more agents running, since a replan can have carried tasks
             this.tasksCarried = new HashSet<>(vehicle.getCurrentTasks());
             this.weightCarried = tasksCarried.stream().mapToInt(t -> t.weight).sum();
-            System.out.println(this.weightCarried);
         }
 
         private Node(City position, Node parent, Action action, Vehicle vehicle) {
@@ -261,7 +260,8 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                         successors.add(new Node(agentPosition, this, Action.PICKUP, t, vehicle));
                         return successors; // same as delivery
                     }
-                } else if (canMove) {
+                    // only move to tasks that can be picked up
+                } else if (canMove && weightCarried + t.weight <= vehicle.capacity()) {
                     successors.add(new Node(t.pickupCity, this, Action.MOVE, vehicle));
                 }
             }
