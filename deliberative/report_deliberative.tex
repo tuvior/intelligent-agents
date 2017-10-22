@@ -21,21 +21,45 @@
 
 \subsection{Intermediate States}
 % Describe the state representation %
+We decided to represent a state by the following attributes: 
+\begin{itemize}
+	\item The current city of the agent
+	\item The cost paid to reach this state, defined as being \textit{distance x cost/kilometer}
+	\item The weight carried by the agent, defined as being the sum of the weight of the tasks carried
+	\item The set of carried tasks
+	\item The set of available tasks
+\end{itemize}
+
+The implementation in Java of such states will be described in the BFS and A* implementations discussion.
 
 \subsection{Goal State}
 % Describe the goal state %
+An agent has completed its duty when all the original available tasks have been picked up and delivered to their respective cities. Thus, in our implementation, a goal state is a state with an empty set of available tasks and an empty set of carried tasks. 
 
 \subsection{Actions}
 % Describe the possible actions/transitions in your model %
+At each state, an agent can execute several actions. However, we restricted these actions by assigning priorities, in order to reduce the number of generated state and optimise the overall algorithm. The possible actions, sorted by priority, are the following:
 
+\begin{enumerate}
+	\item \textit{Deliver}: if the world is in a state in which the agent can deliver a task in the current city, it will be the next action.
+	\item \textit{Pick-up}: if the world is in a state in which the agent can pick up a task in the current city, it will be the next action.
+	\item \textit{Move}: otherwise, an action is generated for each possible move to a city where a task can be delivered or picked up. This will be translated in several moves, along the path to the destination city, during the plan generation later on.
+\end{enumerate}
+
+We chose to implement those optimisation in order to avoid generating extra state which won't lead to an optimal goal state. In this direction, it does not make sense to not deliver a task as soon as it is possible, or similarly pick up a task. If the agent has to move, then generating a move for all the neighbours is not optimal since it is equivalent to move randomly on the map: we only generate path to cities where it's possible to deliver or pick up a task.
+
+These optimisations highly improved the plan generation time, since the graph is much small. 
 
 \section{Implementation}
 
-\subsection{BFS}
-% Details of the BFS implementation %
+\subsection{BFS and A*}
+Note that we decided to group implementation descriptions since they are using the same data structures. Only the algorithm itself will change, but it's essentially the same as in the slides. 
 
-\subsection{A*}
-% Details of the A* implementation %
+Our implementation associates a state with a graph node, grouping all the state attributes, in the \textit{Node} class. The class contains the \textit{getSuccessors} method, responsible for generating all the next possible states following the criterias stated above. 
+
+Then, during BFS and A*, we generate the graph on the fly and search for goal states. All the generated nodes remember their parent states in order to be able to go back to the root from the optimal goal state. Then, we can generate the plan by going from the root to the final goal state, collecting all the actions taken along the path. This is done thanks to references left along the way, while going back up the tree. 
+
+The major difference between BFS and A* is that BFS won't stop when finding a goal state, since another one can stand below the current level. Then we have to keep the current best state, and search for the optimal one in the whole graph. For A*, since we visit nodes in an optimal order (defined by the heuristic), by we guaranteed to find the optimal goal state as soon as we find the first one. 
 
 \subsection{Heuristic Function}
 % Details of the heuristic functions: main idea, optimality, admissibility %
