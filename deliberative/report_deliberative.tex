@@ -62,7 +62,9 @@ Then, during BFS and A*, we generate the graph on the fly and search for goal st
 The major difference between BFS and A* is that BFS won't stop when finding a goal state, since another one can stand below the current level. Then we have to keep the current best state, and search for the optimal one in the whole graph. For A*, since we visit nodes in an optimal order (defined by the heuristic), by we guaranteed to find the optimal goal state as soon as we find the first one. 
 
 \subsection{Heuristic Function}
-% Details of the heuristic functions: main idea, optimality, admissibility %
+The heuristic function used in A* corresponds to a lower bound to the maximum future cost the current branch will have to spend to complete all it's tasks, and is obtained by calculating what the maximum distance would be travelled to either deliver the furthest carried tasks carried or to pickup \textbf{and} deliver the furthest available task.
+
+Being this heuristic a lower bound of the \textit{true} value of the goal state optimality is maintained, it is impossible to assign a higher value to a node than the one that would be its true value.
 
 
 \section{Results}
@@ -74,17 +76,27 @@ The major difference between BFS and A* is that BFS won't stop when finding a go
 \subsubsection{Setting}
 % Describe the settings of your experiment: topology, task configuration, etc. %
 
+This experiment has been performed on the Swiss topology, and all other settings are default as given.
+
 \subsubsection{Observations}
-% Describe the experimental results and the conclusions you inferred from these results %
+Both algorithms correctly find the optimal solution to the problem.
+
+A*, as expected, turns out to be largely more efficient than BFS, the execution time and memory requirements quickly explode for the latter, as much bigger tree is constructed during the search.
+The execution time of BFS could be dropped in the case where we would not care about optimality of the solution, i.e. using the first goal state found by the algorithm as plan. Unfortunately this can easily result in very unoptimized plans.
+
+Maximum tasks handled by \textbf{BFS} in under a minute: 13 (44 seconds)\\
+Maximum tasks handled by \textbf{A*} in under a minute: 25 (42 seconds)\\
+(experiments made on a ThinkPad t460s, not exactly the most powerful of CPUs)
+
 
 
 \subsection{Experiment 2: Multi-agent Experiments}
 % Observations in multi-agent experiments %
 
 \subsubsection{Setting}
-% Describe the settings of your experiment: topology, task configuration, etc. %
+Experiments made on Swiss topology with default settings, 15 tasks available and 3 agents.
 
 \subsubsection{Observations}
-% Describe the experimental results and the conclusions you inferred from these results %
+It is clear from this experiment how important it will be to coordinate multiple agents in future projects. In this case agents \textit{steal} tasks from each other without logic and end up having to travel the same path at the same time to deliver different tasks, while if the tasks would have been split intelligently this could have been avoided.
 
 \end{document}
