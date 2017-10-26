@@ -33,7 +33,7 @@ public class DeliberativeAgent implements DeliberativeBehavior {
     public void setup(Topology topology, TaskDistribution td, Agent agent) {
         // initialize the planner
         String algorithmName = agent.readProperty("algorithm", String.class, "BFS");
-        String heuristicName = agent.readProperty("heuristic", String.class, "NONE");
+        String heuristicName = agent.readProperty("heuristic", String.class, "MAXCOST");
 
         // throws IllegalArgumentException if algorithm or heuristic are unknown
         algorithm = Algorithm.valueOf(algorithmName.toUpperCase());
@@ -258,7 +258,6 @@ public class DeliberativeAgent implements DeliberativeBehavior {
                 if (t.pickupCity.equals(agentPosition)) {
                     if (weightCarried + t.weight <= vehicle.capacity()) {
                         successors.add(new Node(agentPosition, this, Action.PICKUP, t, vehicle));
-                        return successors; // same as delivery
                     }
                     // only move to tasks that can be picked up
                 } else if (canMove && weightCarried + t.weight <= vehicle.capacity()) {
