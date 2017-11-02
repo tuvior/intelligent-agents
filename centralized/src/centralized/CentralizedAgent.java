@@ -12,12 +12,11 @@ import logist.task.Task;
 import logist.task.TaskDistribution;
 import logist.task.TaskSet;
 import logist.topology.Topology;
-import logist.topology.Topology.City;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 /**
  * A very simple auction agent that assigns all tasks to its first vehicle and
@@ -30,6 +29,7 @@ public class CentralizedAgent implements CentralizedBehavior {
     private Agent agent;
     private long timeout_setup;
     private long timeout_plan;
+    private  double threshold;
 
     @Override
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
@@ -49,6 +49,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
+        threshold = 0.5;
     }
 
     @Override
@@ -63,41 +64,23 @@ public class CentralizedAgent implements CentralizedBehavior {
     }
 
     private List<Plan> stochasticLocalSearch(List<Vehicle> vehicles, TaskSet tasks) {
-        HashMap<Vehicle, ConcreteTask> taskLists = new HashMap<>();
+        State state = new State(vehicles, tasks);
+        Random random = new Random();
 
-        vehicles.forEach(v -> taskLists.put(v, null));
+        for (int i = 0; i < 1000; i++) {
+            List<State> neighbours = state.chooseNeighbours();
+            State candidate = localChoice(neighbours);
 
-        int taskPerVehicle = (int) Math.ceil(tasks.size() / vehicles.size());
-        Iterator<Task> taskIterator = tasks.iterator();
-
-        /*vehicles.forEach(v -> {
-            for (int i = 0; i < taskPerVehicle && taskIterator.hasNext(); i++) {
-                Task task = taskIterator.next();
-                ConcreteTask pickup = ConcreteTask.pickup(task);
-                ConcreteTask deliver = ConcreteTask.delivery(task);
-                pickup.complement = deliver;
-                deliver.complement = pickup;
-                pickup.next = deliver;
-                deliver.prev = pickup;
-
-                if (taskLists.get(v) == null) {
-                    pickup.time = 1;
-                    deliver.time = 1;
-                    taskLists.put(v, pickup);
-                } else {
-                    ConcreteTask lastTask = taskLists.get(v);
-                    while (lastTask.next != null) lastTask = lastTask.next;
-                    lastTask.next = pickup;
-                    pickup.time = lastTask.time + 1;
-                    deliver.time = pickup.time + 1;
-                }
+            if (random.nextDouble() <= threshold) {
+                state = candidate;
             }
-        });
-*/
+        }
 
 
+        return null;
+    }
 
-
+    private State localChoice(List<State> neighbours) {
 
         return null;
     }
@@ -108,11 +91,60 @@ public class CentralizedAgent implements CentralizedBehavior {
         public HashMap<ConcreteTask, Integer> time;
         public HashMap<ConcreteTask, Vehicle> vehicle;
 
+        private State() {
+            firstTasks = new HashMap<>();
+            nextTask = new HashMap<>();
+            time = new HashMap<>();
+            vehicle = new HashMap<>();
+        }
+
         public State(List<Vehicle> vehicles, TaskSet tasks) {
             firstTasks = new HashMap<>();
             nextTask = new HashMap<>();
             time = new HashMap<>();
             vehicle = new HashMap<>();
+
+            int taskPerVehicle = (int) Math.ceil(tasks.size() / vehicles.size());
+            Iterator<Task> taskIterator = tasks.iterator();
+
+            vehicles.forEach(v -> {
+                for (int i = 0; i < taskPerVehicle && taskIterator.hasNext(); i++) {
+                    Task task = taskIterator.next();
+                    ConcreteTask pickup = ConcreteTask.pickup(task);
+                    ConcreteTask deliver = ConcreteTask.delivery(task);
+
+                    nextTask.put(pickup, deliver);
+                    nextTask.put(deliver, null);
+                    vehicle.put(pickup, v);
+                    vehicle.put(deliver, v);
+
+                    if (firstTasks.containsKey(v)) {
+                        time.put(pickup, 1);
+                        time.put(deliver, 1);
+                        firstTasks.put(v, pickup);
+                    } else {
+                        ConcreteTask lastTask = firstTasks.get(v);
+                        while (nextTask.get(lastTask) != null) lastTask = nextTask.get(lastTask);
+
+                        nextTask.put(lastTask, pickup);
+                        time.put(pickup, time.get(lastTask) + 1);
+                        time.put(deliver, time.get(pickup) + 1);
+                    }
+                }
+            });
+        }
+
+        public State clone() {
+            State clone = new State();
+            clone.vehicle = new HashMap<>(vehicle);
+            clone.time = new HashMap<>(time);
+            clone.nextTask = new HashMap<>(nextTask);
+            clone.firstTasks = new HashMap<>(firstTasks);
+            return clone;
+        }
+
+        public List<State> chooseNeighbours() {
+            return null;
         }
     }
 
