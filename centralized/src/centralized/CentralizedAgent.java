@@ -13,10 +13,7 @@ import logist.task.TaskDistribution;
 import logist.task.TaskSet;
 import logist.topology.Topology;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
  * A very simple auction agent that assigns all tasks to its first vehicle and
@@ -56,11 +53,13 @@ public class CentralizedAgent implements CentralizedBehavior {
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
         long time_start = System.currentTimeMillis();
 
+        List<Plan> solution = stochasticLocalSearch(vehicles, tasks);
+
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
         System.out.println("The plan was generated in " + duration + " milliseconds.");
 
-        return null;
+        return solution;
     }
 
     private List<Plan> stochasticLocalSearch(List<Vehicle> vehicles, TaskSet tasks) {
@@ -77,12 +76,24 @@ public class CentralizedAgent implements CentralizedBehavior {
         }
 
 
-        return null;
+        return state.getPlans(vehicles);
     }
 
     private State localChoice(List<State> neighbours) {
+        Random random = new Random();
+        State bestState = null;
+        double bestCost = Double.POSITIVE_INFINITY;
 
-        return null;
+        for (State state : neighbours) {
+            double cost = state.getCost();
+
+            if (cost < bestCost || cost == bestCost && random.nextBoolean()) {
+                bestCost = cost;
+                bestState = state;
+            }
+        }
+
+        return bestState;
     }
 
     public static class State {
@@ -143,13 +154,64 @@ public class CentralizedAgent implements CentralizedBehavior {
             return clone;
         }
 
+        public double getCost() {
+            final double[] cost = {0};
+
+            firstTasks.forEach(((vehicle, concreteTask) -> {
+                double costPerKM = vehicle.costPerKm();
+                ConcreteTask current = concreteTask;
+
+                cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
+
+                while (nextTask.get(current) != null) {
+                    ConcreteTask next = nextTask.get(current);
+                    Topology.City startCity = current.getCity();
+                    Topology.City endCity = next.getCity();
+
+                    cost[0] += startCity.distanceTo(endCity) * costPerKM;
+                    current = next;
+                }
+            }));
+
+            return cost[0];
+        }
+
+        public List<Plan> getPlans(List<Vehicle> vehicles) {
+            LinkedList<Plan> plans = new LinkedList<>();
+
+            vehicles.forEach(vehicle -> {
+                Plan plan = new Plan(vehicle.getCurrentCity());
+                ConcreteTask current = firstTasks.get(vehicle);
+                vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
+                plan.appendPickup(current.task);
+
+                while (nextTask.get(current) != null) {
+                    ConcreteTask next = nextTask.get(current);
+                    Topology.City nextCity = next.getCity();
+                    current.getCity().pathTo(nextCity).forEach(plan::appendMove);
+
+                    if (next.action == ConcreteTask.Action.PICKUP) {
+                        plan.appendPickup(next.task);
+                    } else {
+                        plan.appendDelivery(next.task);
+                    }
+                }
+
+                plans.add(plan);
+            });
+
+            return plans;
+
+        }
+
         public List<State> chooseNeighbours() {
             return null;
         }
+
     }
 
     public static class ConcreteTask {
-        public static enum Action {PICKUP, DELIVERY}
+        public enum Action {PICKUP, DELIVERY}
 
         public Action action;
         public Task task;
@@ -166,6 +228,10 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         public static ConcreteTask delivery(Task task) {
             return new ConcreteTask(Action.DELIVERY, task);
+        }
+
+        public Topology.City getCity() {
+            return action == Action.PICKUP ? task.pickupCity : task.deliveryCity;
         }
     }
 
