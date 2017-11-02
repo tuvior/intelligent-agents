@@ -15,14 +15,13 @@ import logist.topology.Topology;
 import logist.topology.Topology.City;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  * A very simple auction agent that assigns all tasks to its first vehicle and
  * handles them sequentially.
- *
  */
-@SuppressWarnings("unused")
 public class CentralizedAgent implements CentralizedBehavior {
 
     private Topology topology;
@@ -30,25 +29,22 @@ public class CentralizedAgent implements CentralizedBehavior {
     private Agent agent;
     private long timeout_setup;
     private long timeout_plan;
-    
+
     @Override
-    public void setup(Topology topology, TaskDistribution distribution,
-            Agent agent) {
-        
+    public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
         // this code is used to get the timeouts
         LogistSettings ls = null;
         try {
             ls = Parsers.parseSettings("config\\settings_default.xml");
-        }
-        catch (Exception exc) {
+        } catch (Exception exc) {
             System.out.println("There was a problem loading the configuration file.");
         }
-        
+
         // the setup method cannot last more than timeout_setup milliseconds
         timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP);
         // the plan method cannot execute more than timeout_plan milliseconds
         timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
-        
+
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
@@ -57,45 +53,41 @@ public class CentralizedAgent implements CentralizedBehavior {
     @Override
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
         long time_start = System.currentTimeMillis();
-        
-//		System.out.println("Agent " + agent.id() + " has tasks " + tasks);
-        Plan planVehicle1 = naivePlan(vehicles.get(0), tasks);
 
-        List<Plan> plans = new ArrayList<Plan>();
-        plans.add(planVehicle1);
-        while (plans.size() < vehicles.size()) {
-            plans.add(Plan.EMPTY);
-        }
-        
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
-        System.out.println("The plan was generated in "+duration+" milliseconds.");
-        
-        return plans;
+        System.out.println("The plan was generated in " + duration + " milliseconds.");
+
+        return null;
     }
 
-    private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
-        City current = vehicle.getCurrentCity();
-        Plan plan = new Plan(current);
+    private Plan stochasticLocalSearch(Vehicle vehicle, TaskSet tasks) {
+        return null;
 
-        for (Task task : tasks) {
-            // move: current city => pickup location
-            for (City city : current.pathTo(task.pickupCity)) {
-                plan.appendMove(city);
-            }
+    }
 
-            plan.appendPickup(task);
+    public static class ConcreteTask {
+        public static enum Action {PICKUP, DELIVERY}
 
-            // move: pickup location => delivery location
-            for (City city : task.path()) {
-                plan.appendMove(city);
-            }
+        public Action action;
+        public Task task;
+        public int time;
 
-            plan.appendDelivery(task);
+        public ConcreteTask next;
+        public ConcreteTask prev;
+        public ConcreteTask complement;
 
-            // set current city
-            current = task.deliveryCity;
+        private ConcreteTask(Action action, Task task) {
+            this.action = action;
+            this.task = task;
         }
-        return plan;
+
+        public static ConcreteTask pickup(Task task) {
+            return new ConcreteTask(Action.PICKUP, task);
+        }
+
+        public static ConcreteTask delivery(Task task) {
+            return new ConcreteTask(Action.DELIVERY, task);
+        }
     }
 }
