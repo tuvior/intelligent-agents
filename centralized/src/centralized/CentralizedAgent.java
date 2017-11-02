@@ -70,10 +70,50 @@ public class CentralizedAgent implements CentralizedBehavior {
         int taskPerVehicle = (int) Math.ceil(tasks.size() / vehicles.size());
         Iterator<Task> taskIterator = tasks.iterator();
 
+        /*vehicles.forEach(v -> {
+            for (int i = 0; i < taskPerVehicle && taskIterator.hasNext(); i++) {
+                Task task = taskIterator.next();
+                ConcreteTask pickup = ConcreteTask.pickup(task);
+                ConcreteTask deliver = ConcreteTask.delivery(task);
+                pickup.complement = deliver;
+                deliver.complement = pickup;
+                pickup.next = deliver;
+                deliver.prev = pickup;
+
+                if (taskLists.get(v) == null) {
+                    pickup.time = 1;
+                    deliver.time = 1;
+                    taskLists.put(v, pickup);
+                } else {
+                    ConcreteTask lastTask = taskLists.get(v);
+                    while (lastTask.next != null) lastTask = lastTask.next;
+                    lastTask.next = pickup;
+                    pickup.time = lastTask.time + 1;
+                    deliver.time = pickup.time + 1;
+                }
+            }
+        });
+*/
+
+
 
 
 
         return null;
+    }
+
+    public static class State {
+        public HashMap<Vehicle, ConcreteTask> firstTasks;
+        public HashMap<ConcreteTask, ConcreteTask> nextTask;
+        public HashMap<ConcreteTask, Integer> time;
+        public HashMap<ConcreteTask, Vehicle> vehicle;
+
+        public State(List<Vehicle>, TaskSet tasks) {
+            firstTasks = new HashMap<>();
+            nextTask = new HashMap<>();
+            time = new HashMap<>();
+            vehicle = new HashMap<>();
+        }
     }
 
     public static class ConcreteTask {
@@ -81,11 +121,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         public Action action;
         public Task task;
-        public int time;
 
-        public ConcreteTask next;
-        public ConcreteTask prev;
-        public ConcreteTask complement;
 
         private ConcreteTask(Action action, Task task) {
             this.action = action;
