@@ -108,7 +108,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         public HashMap<ConcreteTask, Integer> time;
         public HashMap<ConcreteTask, Vehicle> vehicle;
 
-        public State(List<Vehicle>, TaskSet tasks) {
+        public State(List<Vehicle> vehicles, TaskSet tasks) {
             firstTasks = new HashMap<>();
             nextTask = new HashMap<>();
             time = new HashMap<>();
