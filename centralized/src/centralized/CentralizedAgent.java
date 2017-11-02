@@ -16,6 +16,7 @@ import logist.topology.Topology.City;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -61,9 +62,18 @@ public class CentralizedAgent implements CentralizedBehavior {
         return null;
     }
 
-    private Plan stochasticLocalSearch(Vehicle vehicle, TaskSet tasks) {
-        return null;
+    private List<Plan> stochasticLocalSearch(List<Vehicle> vehicles, TaskSet tasks) {
+        HashMap<Vehicle, ConcreteTask> taskLists = new HashMap<>();
 
+        vehicles.forEach(v -> taskLists.put(v, null));
+
+        int taskPerVehicle = (int) Math.ceil(tasks.size() / vehicles.size());
+        Iterator<Task> taskIterator = tasks.iterator();
+
+
+
+
+        return null;
     }
 
     public static class ConcreteTask {
