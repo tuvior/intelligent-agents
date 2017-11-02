@@ -14,10 +14,7 @@ import logist.task.TaskSet;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * A very simple auction agent that assigns all tasks to its first vehicle and
@@ -135,5 +132,50 @@ public class CentralizedAgent implements CentralizedBehavior {
         public static ConcreteTask delivery(Task task) {
             return new ConcreteTask(Action.DELIVERY, task);
         }
+    }
+
+    /**
+     * Constraints checker.
+     *
+     * Note that not all the constraints need to be manually checked,
+     * since the neighbors generation take into account the obvious
+     * contraints as:
+     *      * Time constraints
+     *      * Vehicle constraints
+     *      * Order constraints
+     *      * All tasks delivered constraint
+     *
+     * Then only remains the weight constraint.
+     */
+    private static class Constraints {
+        public boolean checkConstraints(State state) {
+            return checkWeight(state);
+        }
+
+        private boolean checkWeight(State state) {
+            return state.firstTasks.entrySet().stream().allMatch(entry -> {
+                Vehicle vehicle = entry.getKey();
+                ConcreteTask task = entry.getValue();
+
+                int weight = 0;
+                do {
+                    // Update carried weight
+                    if (task.action.equals(ConcreteTask.Action.PICKUP)) {
+                        weight += task.task.weight;
+                    } else {
+                        weight -= task.task.weight;
+                    }
+
+                    if (vehicle.capacity() < weight) {
+                        return false;
+                    }
+
+                    task = state.nextTask.get(task);
+                } while (task != null);
+
+                return true;
+            });
+        }
+
     }
 }
