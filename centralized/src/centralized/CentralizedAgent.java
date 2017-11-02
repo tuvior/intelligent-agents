@@ -29,7 +29,7 @@ public class CentralizedAgent implements CentralizedBehavior {
     private Agent agent;
     private long timeout_setup;
     private long timeout_plan;
-    private  double threshold;
+    private double threshold;
 
     @Override
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
@@ -167,5 +167,50 @@ public class CentralizedAgent implements CentralizedBehavior {
         public static ConcreteTask delivery(Task task) {
             return new ConcreteTask(Action.DELIVERY, task);
         }
+    }
+
+    /**
+     * Constraints checker.
+     * <p>
+     * Note that not all the constraints need to be manually checked,
+     * since the neighbors generation take into account the obvious
+     * contraints as:
+     * * Time constraints
+     * * Vehicle constraints
+     * * Order constraints
+     * * All tasks delivered constraint
+     * <p>
+     * Then only remains the weight constraint.
+     */
+    private static class Constraints {
+        public boolean checkConstraints(State state) {
+            return checkWeight(state);
+        }
+
+        private boolean checkWeight(State state) {
+            return state.firstTasks.entrySet().stream().allMatch(entry -> {
+                Vehicle vehicle = entry.getKey();
+                ConcreteTask task = entry.getValue();
+
+                int weight = 0;
+                do {
+                    // Update carried weight
+                    if (task.action.equals(ConcreteTask.Action.PICKUP)) {
+                        weight += task.task.weight;
+                    } else {
+                        weight -= task.task.weight;
+                    }
+
+                    if (vehicle.capacity() < weight) {
+                        return false;
+                    }
+
+                    task = state.nextTask.get(task);
+                } while (task != null);
+
+                return true;
+            });
+        }
+
     }
 }
