@@ -13,10 +13,7 @@ import logist.task.TaskDistribution;
 import logist.task.TaskSet;
 import logist.topology.Topology;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
  * A very simple auction agent that assigns all tasks to its first vehicle and
@@ -144,6 +141,55 @@ public class CentralizedAgent implements CentralizedBehavior {
         }
 
         public List<State> chooseNeighbours() {
+            List<State> neighbors = new ArrayList<>();
+
+            // Get random vehicle
+            Vehicle vehicle;
+            do {
+                Random random = new Random();
+                List<Vehicle> keys = new ArrayList<>(firstTasks.keySet());
+                vehicle = keys.get(random.nextInt(keys.size()));
+            } while (firstTasks.get(vehicle) != null);
+
+            // Apply the change vehicle operator
+            for (Vehicle v: firstTasks.keySet()) {
+                if (vehicle == v) continue;
+                neighbors.add(changeVehicle(vehicle, v));
+            }
+
+            // Apply the change task order operator
+
+
+
+            return null;
+        }
+
+        private State changeVehicle(Vehicle v1, Vehicle v2) {
+            State neighbor = this.clone();
+
+            // Get the task to change and its complement
+
+            return null;
+        }
+
+        private ConcreteTask removeFirstCouple(Vehicle vehicle) {
+            ConcreteTask pickup = firstTasks.get(vehicle);
+            return null
+        }
+
+        private ConcreteTask getDelivery(ConcreteTask pickup) {
+            ConcreteTask delivery = null;
+            ConcreteTask next = nextTask.get(pickup);
+
+            do {
+                if (pickup.task.equals(next.task)) {
+                    return delivery;
+                }
+
+                next = nextTask.get(next);
+            } while (delivery == null);
+
+            assert(false);
             return null;
         }
     }
