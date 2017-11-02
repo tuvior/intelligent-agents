@@ -118,9 +118,9 @@ public class CentralizedAgent implements CentralizedBehavior {
                     vehicle.put(pickup, v);
                     vehicle.put(deliver, v);
 
-                    if (firstTasks.containsKey(v)) {
+                    if (!firstTasks.containsKey(v)) {
                         time.put(pickup, 1);
-                        time.put(deliver, 1);
+                        time.put(deliver, 2);
                         firstTasks.put(v, pickup);
                     } else {
                         ConcreteTask lastTask = firstTasks.get(v);
