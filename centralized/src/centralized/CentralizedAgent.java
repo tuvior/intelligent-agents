@@ -27,6 +27,7 @@ public class CentralizedAgent implements CentralizedBehavior {
     private long timeout_setup;
     private long timeout_plan;
     private double threshold;
+    private int convergenceThreshold;
 
     @Override
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
@@ -47,6 +48,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         this.distribution = distribution;
         this.agent = agent;
         threshold = 0.5;
+        convergenceThreshold = 500;
     }
 
     @Override
@@ -65,13 +67,27 @@ public class CentralizedAgent implements CentralizedBehavior {
     private List<Plan> stochasticLocalSearch(List<Vehicle> vehicles, TaskSet tasks) {
         State state = new State(vehicles, tasks);
         Random random = new Random();
+        double lastCost = 0;
+        int unchangedIterations = 0;
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 10000; i++) {
             List<State> neighbours = state.chooseNeighbours();
             State candidate = localChoice(neighbours);
 
+            double cost = candidate.getCost();
+
+            if (Double.compare(lastCost, cost) == 0) {
+                unchangedIterations++;
+            } else {
+                unchangedIterations = 0;
+            }
+
+            // if the solution hasn't gotten better in convergenceThreshold iterations, return it
+            if (unchangedIterations > convergenceThreshold) break;
+
             if (random.nextDouble() <= threshold) {
                 state = candidate;
+                lastCost = cost;
             }
         }
 
@@ -103,10 +119,6 @@ public class CentralizedAgent implements CentralizedBehavior {
         public HashMap<ConcreteTask, Vehicle> vehicle;
 
         private State() {
-            firstTasks = new HashMap<>();
-            nextTask = new HashMap<>();
-            time = new HashMap<>();
-            vehicle = new HashMap<>();
         }
 
         public State(List<Vehicle> vehicles, TaskSet tasks) {
@@ -200,7 +212,7 @@ public class CentralizedAgent implements CentralizedBehavior {
                         plan.appendDelivery(next.task);
                     }
 
-                    current = nextTask.get(current);
+                    current = next;
                 }
 
                 plans.add(plan);
@@ -233,25 +245,21 @@ public class CentralizedAgent implements CentralizedBehavior {
             // Apply the change task order operator
             ConcreteTask current = firstTasks.get(vehicle);
 
-            System.out.println("starting swaps");
-
             while (nextTask.get(current) != null) {
                 ConcreteTask other = nextTask.get(current);
 
                 do {
                     if (current.isRelated(other)) break;
 
-                    System.out.println("doing swap - " + System.currentTimeMillis());
 
-                    State neighbor = swapTasks(vehicle, current, other);
+                    // only do a swap if it doesn't break a pickup/deliver relationship, i.e. other is a delivery and gets moved before it's pickup
+                    if (checkIfValidSwap(current, other)) {
+                        State neighbor = swapTasks(vehicle, current, other);
 
-                    System.out.println("checking const");
-
-                    if (Constraints.checkConstraints(neighbor)) {
-                        neighbors.add(neighbor);
+                        if (Constraints.checkConstraints(neighbor)) {
+                            neighbors.add(neighbor);
+                        }
                     }
-
-                    System.out.println("done checking");
 
                     other = nextTask.get(other);
                 } while (other != null);
@@ -259,7 +267,6 @@ public class CentralizedAgent implements CentralizedBehavior {
                 current = nextTask.get(current);
             }
 
-            System.out.println("done with swaps");
 
             return neighbors;
         }
@@ -324,11 +331,20 @@ public class CentralizedAgent implements CentralizedBehavior {
             return delivery;
         }
 
+        private boolean checkIfValidSwap(ConcreteTask task1, ConcreteTask task2) {
+            if (task2.action == ConcreteTask.Action.PICKUP) return true;
+            ConcreteTask current = nextTask.get(task1);
+
+            do {
+                if (current.isRelated(task2)) return false;
+                if (current == task2) return true;
+                current = nextTask.get(current);
+            } while (current != null);
+
+            return true;
+        }
 
         private State swapTasks(Vehicle v, ConcreteTask task1, ConcreteTask task2) {
-
-            System.out.println(task1 == task2);
-
             State neighbor = this.clone();
 
             int t1 = time.get(task1);
@@ -341,30 +357,20 @@ public class CentralizedAgent implements CentralizedBehavior {
 
             for (Map.Entry<ConcreteTask, ConcreteTask> map : nextTask.entrySet()) {
                 if (task1 == map.getValue()) parent1 = map.getKey();
-                if (task2 == map.getValue()) parent2 = map.getKey();
+                if (task2 == map.getValue()) parent2 = map.getKey() == task1 ? task2 : map.getKey();
             }
 
+            ConcreteTask child1 = nextTask.get(task1) == task2 ? task1 : nextTask.get(task1);
+            ConcreteTask child2 = nextTask.get(task2);
 
-
-            if (firstTasks.get(v) == task1) {
+            if (parent1 == null) {
                 neighbor.firstTasks.put(v, task2);
             } else {
                 neighbor.nextTask.put(parent1, task2);
             }
-
-
-            ConcreteTask child1 = nextTask.get(task1);
-            ConcreteTask child2 = nextTask.get(task2);
-
+            neighbor.nextTask.put(parent2, task1);
             neighbor.nextTask.put(task1, child2);
-
-            if (nextTask.get(task1) == task2) {
-                neighbor.nextTask.put(task2, task1);
-            } else {
-                neighbor.nextTask.put(task2, child1);
-                neighbor.nextTask.put(parent2, task1);
-            }
-
+            neighbor.nextTask.put(task2, child1);
 
             return neighbor;
         }
