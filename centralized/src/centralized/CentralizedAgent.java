@@ -33,7 +33,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         // this code is used to get the timeouts
         LogistSettings ls = null;
         try {
-            ls = Parsers.parseSettings("config\\settings_default.xml");
+            ls = Parsers.parseSettings("config/settings_default.xml");
         } catch (Exception exc) {
             System.out.println("There was a problem loading the configuration file.");
         }
@@ -66,15 +66,20 @@ public class CentralizedAgent implements CentralizedBehavior {
         State state = new State(vehicles, tasks);
         Random random = new Random();
 
-        for (int i = 0; i < 1000; i++) {
+        System.out.println("starting");
+        for (int i = 0; i < 20; i++) {
             List<State> neighbours = state.chooseNeighbours();
+            System.out.println("chosen neigh");
             State candidate = localChoice(neighbours);
+            System.out.println("local choice");
 
             if (random.nextDouble() <= threshold) {
                 state = candidate;
             }
         }
 
+
+        System.out.println("generating plan");
 
         return state.getPlans(vehicles);
     }
@@ -180,6 +185,7 @@ public class CentralizedAgent implements CentralizedBehavior {
             ArrayList<Plan> plans = new ArrayList<>();
 
             vehicles.forEach(vehicle -> {
+                System.out.println("next vehicle in plan");
                 Plan plan = new Plan(vehicle.getCurrentCity());
                 ConcreteTask current = firstTasks.get(vehicle);
                 vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
@@ -195,6 +201,8 @@ public class CentralizedAgent implements CentralizedBehavior {
                     } else {
                         plan.appendDelivery(next.task);
                     }
+
+                    current = nextTask.get(current);
                 }
 
                 plans.add(plan);
@@ -209,11 +217,11 @@ public class CentralizedAgent implements CentralizedBehavior {
 
             // Get random vehicle
             Vehicle vehicle;
+            Random random = new Random();
             do {
-                Random random = new Random();
                 List<Vehicle> keys = new ArrayList<>(firstTasks.keySet());
                 vehicle = keys.get(random.nextInt(keys.size()));
-            } while (firstTasks.get(vehicle) != null);
+            } while (!firstTasks.containsKey(vehicle) || firstTasks.get(vehicle) == null);
 
             // Apply the change vehicle operator
             for (Vehicle v : firstTasks.keySet()) {
@@ -221,7 +229,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
                 State neighbor = changeVehicle(vehicle, v);
                 if (Constraints.checkConstraints(neighbor)) {
-                    neighbors.add(changeVehicle(vehicle, v));
+                    neighbors.add(neighbor);
                 }
             }
 
@@ -234,13 +242,20 @@ public class CentralizedAgent implements CentralizedBehavior {
                 while (nextTask.get(other) != null) {
                     if (current.isRelated(other)) break;
 
+                    State neighbor = swapTasks(vehicle, current, other);
+
+
+                    if (Constraints.checkConstraints(neighbor)) {
+                        neighbors.add(neighbor);
+                    }
+
                     other = nextTask.get(other);
                 }
 
                 current = nextTask.get(current);
             }
 
-            return null;
+            return neighbors;
         }
 
         private State changeVehicle(Vehicle v1, Vehicle v2) {
@@ -267,6 +282,38 @@ public class CentralizedAgent implements CentralizedBehavior {
             return neighbor;
         }
 
+        private State swapTasks(Vehicle v, ConcreteTask task1, ConcreteTask task2) {
+            State neighbor = this.clone();
+
+            int t1 = neighbor.time.get(task1);
+            int t2 = neighbor.time.get(task2);
+            neighbor.time.put(task2, t1);
+            neighbor.time.put(task1, t2);
+
+            ConcreteTask parent1 = null;
+            ConcreteTask parent2 = null;
+
+            for (Map.Entry<ConcreteTask, ConcreteTask> map : neighbor.nextTask.entrySet()) {
+                if (task1.equals(map.getValue())) parent1 = map.getKey();
+                if (task2.equals(map.getValue())) parent2 = map.getKey();
+            }
+
+            if (neighbor.firstTasks.get(v).equals(task1)) {
+                neighbor.firstTasks.put(v, task2);
+            } else {
+                neighbor.nextTask.put(parent1, task2);
+            }
+            neighbor.nextTask.put(parent2, task1);
+
+            ConcreteTask child1 = neighbor.nextTask.get(task1);
+            ConcreteTask child2 = neighbor.nextTask.get(task2);
+
+            neighbor.nextTask.put(task1, child2);
+            neighbor.nextTask.put(task2, child1);
+
+            return neighbor;
+        }
+
         // Remove first pickup and its delivery and update times
         private ConcreteTask removeFirstCouple(Vehicle vehicle) {
             // Remove pickup
@@ -275,7 +322,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
             // Find the delivery and update times at the same time
             ConcreteTask prev = pickup;
-            while (!nextTask.get(prev).task.equals(pickup.task)) {
+            while (!pickup.task.equals(nextTask.get(prev).task)) {
                 // Update time
                 time.put(prev, time.get(prev) - 1);
 
