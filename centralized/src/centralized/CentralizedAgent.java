@@ -1,7 +1,5 @@
 package centralized;
 
-//the list of imports
-
 import logist.LogistSettings;
 import logist.agent.Agent;
 import logist.behavior.CentralizedBehavior;
@@ -15,10 +13,6 @@ import logist.topology.Topology;
 
 import java.util.*;
 
-/**
- * A very simple auction agent that assigns all tasks to its first vehicle and
- * handles them sequentially.
- */
 public class CentralizedAgent implements CentralizedBehavior {
 
     private Topology topology;
@@ -64,6 +58,12 @@ public class CentralizedAgent implements CentralizedBehavior {
         return solution;
     }
 
+    /**
+     * Compute the optimal solution with stochastic local search.
+     * @param vehicles
+     * @param tasks
+     * @return The optimal plans
+     */
     private List<Plan> stochasticLocalSearch(List<Vehicle> vehicles, TaskSet tasks) {
         State state = new State(vehicles, tasks);
         Random random = new Random();
@@ -95,6 +95,11 @@ public class CentralizedAgent implements CentralizedBehavior {
         return state.getPlans(vehicles);
     }
 
+    /**
+     * Return the best neighbor in term of the objective function
+     * @param neighbours
+     * @return Best neighbor state
+     */
     private State localChoice(List<State> neighbours) {
         Random random = new Random();
         State bestState = null;
@@ -176,15 +181,26 @@ public class CentralizedAgent implements CentralizedBehavior {
             return cost[0];
         }
 
+        /**
+         * Generate the plan for each vehicle from the state
+         * @param vehicles
+         * @return The plan for each vehicle
+         */
         public List<Plan> getPlans(List<Vehicle> vehicles) {
             ArrayList<Plan> plans = new ArrayList<>();
 
+            // Generate a plan for each vehicle
             vehicles.forEach(vehicle -> {
                 Plan plan = new Plan(vehicle.getCurrentCity());
                 ConcreteTask current = firstTasks.get(vehicle);
+
+                // Append moves actions until the first pickup
                 vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
+
+                // Append first pickup
                 plan.appendPickup(current.task);
 
+                // Then between each task, append moves and the task
                 while (nextTask.get(current) != null) {
                     ConcreteTask next = nextTask.get(current);
                     Topology.City nextCity = next.getCity();
@@ -206,6 +222,10 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         }
 
+        /**
+         * Generate all the neighbors
+         * @return List of neighbors
+         */
         public List<State> chooseNeighbours() {
             List<State> neighbors = new ArrayList<>();
 
@@ -236,7 +256,8 @@ public class CentralizedAgent implements CentralizedBehavior {
                     if (current.isRelated(other)) break;
 
 
-                    // only do a swap if it doesn't break a pickup/deliver relationship, i.e. other is a delivery and gets moved before its pickup
+                    // Only do a swap if it doesn't break a pickup/deliver relationship,
+                    // i.e. other is a delivery and gets moved before its pickup
                     if (checkIfValidSwap(current, other)) {
                         State neighbor = swapTasks(vehicle, current, other);
 
@@ -283,15 +304,17 @@ public class CentralizedAgent implements CentralizedBehavior {
                 prev = nextTask.get(prev);
             }
 
-            // Remove delivery
+
             ConcreteTask delivery = nextTask.get(prev);
 
+            // Remove pickup
             if (delivery == nextTask.get(pickup)) {
                 firstTasks.put(vehicle, nextTask.get(delivery));
             } else {
                 firstTasks.put(vehicle, nextTask.get(pickup));
             }
 
+            // Remove delivery
             nextTask.put(prev, nextTask.get(delivery));
             return delivery;
         }
@@ -312,17 +335,19 @@ public class CentralizedAgent implements CentralizedBehavior {
         private State swapTasks(Vehicle v, ConcreteTask task1, ConcreteTask task2) {
             State neighbor = this.clone();
 
+            // Get parents
             ConcreteTask parent1 = null;
             ConcreteTask parent2 = null;
-
             for (Map.Entry<ConcreteTask, ConcreteTask> map : nextTask.entrySet()) {
                 if (task1 == map.getValue()) parent1 = map.getKey();
                 if (task2 == map.getValue()) parent2 = map.getKey() == task1 ? task2 : map.getKey();
             }
 
+            // Get children
             ConcreteTask child1 = nextTask.get(task1) == task2 ? task1 : nextTask.get(task1);
             ConcreteTask child2 = nextTask.get(task2);
 
+            // Swap
             if (parent1 == null) {
                 neighbor.firstTasks.put(v, task2);
             } else {
@@ -371,11 +396,11 @@ public class CentralizedAgent implements CentralizedBehavior {
      * <p>
      * Note that not all the constraints need to be manually checked,
      * since the neighbors generation take into account the obvious
-     * contraints as:
+     * constraints as:
      * * Time constraints
      * * Vehicle constraints
      * * Order constraints
-     * * All tasks delivered constraint
+     * * All tasks delivered
      * <p>
      * Then only remains the weight constraint.
      */
@@ -391,6 +416,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
                 int weight = 0;
 
+                // Go through the pickups/deliveries and make sure we do not ever violate the capacity
                 while (task != null) {
                     // Update carried weight
                     if (task.action == ConcreteTask.Action.PICKUP) {
