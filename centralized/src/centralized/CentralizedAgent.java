@@ -218,7 +218,11 @@ public class CentralizedAgent implements CentralizedBehavior {
             // Apply the change vehicle operator
             for (Vehicle v : firstTasks.keySet()) {
                 if (vehicle == v) continue;
-                neighbors.add(changeVehicle(vehicle, v));
+
+                State neighbor = changeVehicle(vehicle, v);
+                if (Constraints.checkConstraints(neighbor)) {
+                    neighbors.add(changeVehicle(vehicle, v));
+                }
             }
 
             // Apply the change task order operator
@@ -242,30 +246,55 @@ public class CentralizedAgent implements CentralizedBehavior {
         private State changeVehicle(Vehicle v1, Vehicle v2) {
             State neighbor = this.clone();
 
-            // Get the task to change and its complement
+            // Remove the pickup, delivery and update times
+            ConcreteTask pickup = neighbor.firstTasks.get(v1);
+            ConcreteTask delivery = neighbor.removeFirstCouple(v1);
 
-            return null;
+            // Add to new vehicle
+            ConcreteTask first = neighbor.firstTasks.get(v2);
+            neighbor.firstTasks.put(v2, pickup);
+            neighbor.nextTask.put(pickup, delivery);
+            neighbor.nextTask.put(delivery, first);
+
+            // Update times of new vehicle
+            ConcreteTask current = pickup;
+            int time = 1;
+            while (current != null) {
+                neighbor.time.put(current, time++);
+                current = neighbor.nextTask.get(current);
+            }
+
+            return neighbor;
         }
 
+        // Remove first pickup and its delivery and update times
         private ConcreteTask removeFirstCouple(Vehicle vehicle) {
+            // Remove pickup
             ConcreteTask pickup = firstTasks.get(vehicle);
-            return null;
-        }
+            firstTasks.put(vehicle, nextTask.get(pickup));
 
-        private ConcreteTask getDelivery(ConcreteTask pickup) {
-            ConcreteTask delivery = null;
-            ConcreteTask next = nextTask.get(pickup);
+            // Find the delivery and update times at the same time
+            ConcreteTask prev = pickup;
+            while (!nextTask.get(prev).task.equals(pickup.task)) {
+                // Update time
+                time.put(prev, time.get(prev) - 1);
 
-            do {
-                if (pickup.task.equals(next.task)) {
-                    return delivery;
-                }
+                // Advance
+                prev = nextTask.get(prev);
+            }
 
-                next = nextTask.get(next);
-            } while (delivery == null);
+            // Remove delivery
+            ConcreteTask delivery = nextTask.get(prev);
+            nextTask.put(prev, nextTask.get(delivery));
 
-            assert (false);
-            return null;
+            // Update times after delivery
+            ConcreteTask task = nextTask.get(prev);
+            while (task != null) {
+                time.put(task, time.get(task) - 2);
+                task = nextTask.get(task);
+            }
+
+            return delivery;
         }
 
     }
@@ -312,12 +341,12 @@ public class CentralizedAgent implements CentralizedBehavior {
      * <p>
      * Then only remains the weight constraint.
      */
-    private static class Constraints {
-        public boolean checkConstraints(State state) {
+    public static class Constraints {
+        public static boolean checkConstraints(State state) {
             return checkWeight(state);
         }
 
-        private boolean checkWeight(State state) {
+        private static boolean checkWeight(State state) {
             return state.firstTasks.entrySet().stream().allMatch(entry -> {
                 Vehicle vehicle = entry.getKey();
                 ConcreteTask task = entry.getValue();
