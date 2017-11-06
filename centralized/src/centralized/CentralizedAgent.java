@@ -115,8 +115,6 @@ public class CentralizedAgent implements CentralizedBehavior {
     public static class State {
         public HashMap<Vehicle, ConcreteTask> firstTasks;
         public HashMap<ConcreteTask, ConcreteTask> nextTask;
-        public HashMap<ConcreteTask, Integer> time;
-        public HashMap<ConcreteTask, Vehicle> vehicle;
 
         private State() {
         }
@@ -124,8 +122,6 @@ public class CentralizedAgent implements CentralizedBehavior {
         public State(List<Vehicle> vehicles, TaskSet tasks) {
             firstTasks = new HashMap<>();
             nextTask = new HashMap<>();
-            time = new HashMap<>();
-            vehicle = new HashMap<>();
 
             int taskPerVehicle = (int) Math.ceil((double) tasks.size() / (double) vehicles.size());
             Iterator<Task> taskIterator = tasks.iterator();
@@ -138,20 +134,14 @@ public class CentralizedAgent implements CentralizedBehavior {
 
                     nextTask.put(pickup, deliver);
                     nextTask.put(deliver, null);
-                    vehicle.put(pickup, v);
-                    vehicle.put(deliver, v);
 
                     if (!firstTasks.containsKey(v)) {
-                        time.put(pickup, 1);
-                        time.put(deliver, 2);
                         firstTasks.put(v, pickup);
                     } else {
                         ConcreteTask lastTask = firstTasks.get(v);
                         while (nextTask.get(lastTask) != null) lastTask = nextTask.get(lastTask);
 
                         nextTask.put(lastTask, pickup);
-                        time.put(pickup, time.get(lastTask) + 1);
-                        time.put(deliver, time.get(pickup) + 1);
                     }
                 }
             });
@@ -159,8 +149,6 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         public State clone() {
             State clone = new State();
-            clone.vehicle = new HashMap<>(vehicle);
-            clone.time = new HashMap<>(time);
             clone.nextTask = new HashMap<>(nextTask);
             clone.firstTasks = new HashMap<>(firstTasks);
             return clone;
@@ -170,22 +158,18 @@ public class CentralizedAgent implements CentralizedBehavior {
             final double[] cost = {0};
 
             firstTasks.forEach(((vehicle, concreteTask) -> {
+                double costPerKM = vehicle.costPerKm();
+                ConcreteTask current = concreteTask;
 
+                cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
 
-                if (concreteTask != null) {
-                    double costPerKM = vehicle.costPerKm();
-                    ConcreteTask current = concreteTask;
+                while (nextTask.get(current) != null) {
+                    ConcreteTask next = nextTask.get(current);
+                    Topology.City startCity = current.getCity();
+                    Topology.City endCity = next.getCity();
 
-                    cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
-
-                    while (nextTask.get(current) != null) {
-                        ConcreteTask next = nextTask.get(current);
-                        Topology.City startCity = current.getCity();
-                        Topology.City endCity = next.getCity();
-
-                        cost[0] += startCity.distanceTo(endCity) * costPerKM;
-                        current = next;
-                    }
+                    cost[0] += startCity.distanceTo(endCity) * costPerKM;
+                    current = next;
                 }
             }));
 
@@ -252,7 +236,7 @@ public class CentralizedAgent implements CentralizedBehavior {
                     if (current.isRelated(other)) break;
 
 
-                    // only do a swap if it doesn't break a pickup/deliver relationship, i.e. other is a delivery and gets moved before it's pickup
+                    // only do a swap if it doesn't break a pickup/deliver relationship, i.e. other is a delivery and gets moved before its pickup
                     if (checkIfValidSwap(current, other)) {
                         State neighbor = swapTasks(vehicle, current, other);
 
@@ -284,28 +268,17 @@ public class CentralizedAgent implements CentralizedBehavior {
             neighbor.nextTask.put(pickup, delivery);
             neighbor.nextTask.put(delivery, first);
 
-            // Update times of new vehicle
-            ConcreteTask current = pickup;
-            int time = 1;
-            while (current != null) {
-                neighbor.time.put(current, time++);
-                current = neighbor.nextTask.get(current);
-            }
-
             return neighbor;
         }
 
-        // Remove first pickup and its delivery and update times
+        // Remove first pickup and its delivery
         private ConcreteTask removeFirstCouple(Vehicle vehicle) {
             // Remove pickup
             ConcreteTask pickup = firstTasks.get(vehicle);
 
-            // Find the delivery and update times at the same time
+            // Find the delivery times
             ConcreteTask prev = pickup;
             while (!pickup.isRelated(nextTask.get(prev)) && nextTask.get(prev) != null) {
-                // Update time
-                time.put(prev, time.get(prev) - 1);
-
                 // Advance
                 prev = nextTask.get(prev);
             }
@@ -320,14 +293,6 @@ public class CentralizedAgent implements CentralizedBehavior {
             }
 
             nextTask.put(prev, nextTask.get(delivery));
-
-            // Update times after delivery
-            ConcreteTask task = nextTask.get(prev);
-            while (task != null) {
-                time.put(task, time.get(task) - 2);
-                task = nextTask.get(task);
-            }
-
             return delivery;
         }
 
@@ -346,11 +311,6 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         private State swapTasks(Vehicle v, ConcreteTask task1, ConcreteTask task2) {
             State neighbor = this.clone();
-
-            int t1 = time.get(task1);
-            int t2 = time.get(task2);
-            neighbor.time.put(task2, t1);
-            neighbor.time.put(task1, t2);
 
             ConcreteTask parent1 = null;
             ConcreteTask parent2 = null;
