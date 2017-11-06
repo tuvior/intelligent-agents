@@ -66,20 +66,15 @@ public class CentralizedAgent implements CentralizedBehavior {
         State state = new State(vehicles, tasks);
         Random random = new Random();
 
-        System.out.println("starting");
         for (int i = 0; i < 20; i++) {
             List<State> neighbours = state.chooseNeighbours();
-            System.out.println("chosen neigh");
             State candidate = localChoice(neighbours);
-            System.out.println("local choice");
 
             if (random.nextDouble() <= threshold) {
                 state = candidate;
             }
         }
 
-
-        System.out.println("generating plan");
 
         return state.getPlans(vehicles);
     }
@@ -120,7 +115,7 @@ public class CentralizedAgent implements CentralizedBehavior {
             time = new HashMap<>();
             vehicle = new HashMap<>();
 
-            int taskPerVehicle = (int) Math.ceil(tasks.size() / vehicles.size());
+            int taskPerVehicle = (int) Math.ceil((double) tasks.size() / (double) vehicles.size());
             Iterator<Task> taskIterator = tasks.iterator();
 
             vehicles.forEach(v -> {
@@ -163,18 +158,22 @@ public class CentralizedAgent implements CentralizedBehavior {
             final double[] cost = {0};
 
             firstTasks.forEach(((vehicle, concreteTask) -> {
-                double costPerKM = vehicle.costPerKm();
-                ConcreteTask current = concreteTask;
 
-                cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
 
-                while (nextTask.get(current) != null) {
-                    ConcreteTask next = nextTask.get(current);
-                    Topology.City startCity = current.getCity();
-                    Topology.City endCity = next.getCity();
+                if (concreteTask != null) {
+                    double costPerKM = vehicle.costPerKm();
+                    ConcreteTask current = concreteTask;
 
-                    cost[0] += startCity.distanceTo(endCity) * costPerKM;
-                    current = next;
+                    cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
+
+                    while (nextTask.get(current) != null) {
+                        ConcreteTask next = nextTask.get(current);
+                        Topology.City startCity = current.getCity();
+                        Topology.City endCity = next.getCity();
+
+                        cost[0] += startCity.distanceTo(endCity) * costPerKM;
+                        current = next;
+                    }
                 }
             }));
 
@@ -185,7 +184,6 @@ public class CentralizedAgent implements CentralizedBehavior {
             ArrayList<Plan> plans = new ArrayList<>();
 
             vehicles.forEach(vehicle -> {
-                System.out.println("next vehicle in plan");
                 Plan plan = new Plan(vehicle.getCurrentCity());
                 ConcreteTask current = firstTasks.get(vehicle);
                 vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
@@ -226,7 +224,6 @@ public class CentralizedAgent implements CentralizedBehavior {
             // Apply the change vehicle operator
             for (Vehicle v : firstTasks.keySet()) {
                 if (vehicle == v) continue;
-
                 State neighbor = changeVehicle(vehicle, v);
                 if (Constraints.checkConstraints(neighbor)) {
                     neighbors.add(neighbor);
@@ -236,24 +233,33 @@ public class CentralizedAgent implements CentralizedBehavior {
             // Apply the change task order operator
             ConcreteTask current = firstTasks.get(vehicle);
 
+            System.out.println("starting swaps");
+
             while (nextTask.get(current) != null) {
                 ConcreteTask other = nextTask.get(current);
 
-                while (nextTask.get(other) != null) {
+                do {
                     if (current.isRelated(other)) break;
+
+                    System.out.println("doing swap - " + System.currentTimeMillis());
 
                     State neighbor = swapTasks(vehicle, current, other);
 
+                    System.out.println("checking const");
 
                     if (Constraints.checkConstraints(neighbor)) {
                         neighbors.add(neighbor);
                     }
 
+                    System.out.println("done checking");
+
                     other = nextTask.get(other);
-                }
+                } while (other != null);
 
                 current = nextTask.get(current);
             }
+
+            System.out.println("done with swaps");
 
             return neighbors;
         }
@@ -282,47 +288,14 @@ public class CentralizedAgent implements CentralizedBehavior {
             return neighbor;
         }
 
-        private State swapTasks(Vehicle v, ConcreteTask task1, ConcreteTask task2) {
-            State neighbor = this.clone();
-
-            int t1 = neighbor.time.get(task1);
-            int t2 = neighbor.time.get(task2);
-            neighbor.time.put(task2, t1);
-            neighbor.time.put(task1, t2);
-
-            ConcreteTask parent1 = null;
-            ConcreteTask parent2 = null;
-
-            for (Map.Entry<ConcreteTask, ConcreteTask> map : neighbor.nextTask.entrySet()) {
-                if (task1.equals(map.getValue())) parent1 = map.getKey();
-                if (task2.equals(map.getValue())) parent2 = map.getKey();
-            }
-
-            if (neighbor.firstTasks.get(v).equals(task1)) {
-                neighbor.firstTasks.put(v, task2);
-            } else {
-                neighbor.nextTask.put(parent1, task2);
-            }
-            neighbor.nextTask.put(parent2, task1);
-
-            ConcreteTask child1 = neighbor.nextTask.get(task1);
-            ConcreteTask child2 = neighbor.nextTask.get(task2);
-
-            neighbor.nextTask.put(task1, child2);
-            neighbor.nextTask.put(task2, child1);
-
-            return neighbor;
-        }
-
         // Remove first pickup and its delivery and update times
         private ConcreteTask removeFirstCouple(Vehicle vehicle) {
             // Remove pickup
             ConcreteTask pickup = firstTasks.get(vehicle);
-            firstTasks.put(vehicle, nextTask.get(pickup));
 
             // Find the delivery and update times at the same time
             ConcreteTask prev = pickup;
-            while (!pickup.task.equals(nextTask.get(prev).task)) {
+            while (!pickup.isRelated(nextTask.get(prev)) && nextTask.get(prev) != null) {
                 // Update time
                 time.put(prev, time.get(prev) - 1);
 
@@ -332,6 +305,13 @@ public class CentralizedAgent implements CentralizedBehavior {
 
             // Remove delivery
             ConcreteTask delivery = nextTask.get(prev);
+
+            if (delivery == nextTask.get(pickup)) {
+                firstTasks.put(vehicle, nextTask.get(delivery));
+            } else {
+                firstTasks.put(vehicle, nextTask.get(pickup));
+            }
+
             nextTask.put(prev, nextTask.get(delivery));
 
             // Update times after delivery
@@ -344,6 +324,50 @@ public class CentralizedAgent implements CentralizedBehavior {
             return delivery;
         }
 
+
+        private State swapTasks(Vehicle v, ConcreteTask task1, ConcreteTask task2) {
+
+            System.out.println(task1 == task2);
+
+            State neighbor = this.clone();
+
+            int t1 = time.get(task1);
+            int t2 = time.get(task2);
+            neighbor.time.put(task2, t1);
+            neighbor.time.put(task1, t2);
+
+            ConcreteTask parent1 = null;
+            ConcreteTask parent2 = null;
+
+            for (Map.Entry<ConcreteTask, ConcreteTask> map : nextTask.entrySet()) {
+                if (task1 == map.getValue()) parent1 = map.getKey();
+                if (task2 == map.getValue()) parent2 = map.getKey();
+            }
+
+
+
+            if (firstTasks.get(v) == task1) {
+                neighbor.firstTasks.put(v, task2);
+            } else {
+                neighbor.nextTask.put(parent1, task2);
+            }
+
+
+            ConcreteTask child1 = nextTask.get(task1);
+            ConcreteTask child2 = nextTask.get(task2);
+
+            neighbor.nextTask.put(task1, child2);
+
+            if (nextTask.get(task1) == task2) {
+                neighbor.nextTask.put(task2, task1);
+            } else {
+                neighbor.nextTask.put(task2, child1);
+                neighbor.nextTask.put(parent2, task1);
+            }
+
+
+            return neighbor;
+        }
     }
 
     public static class ConcreteTask {
@@ -371,6 +395,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         }
 
         public boolean isRelated(ConcreteTask other) {
+            if (other == null) return false;
             return action == Action.PICKUP && other.action == Action.DELIVERY && task.equals(other.task);
         }
     }
@@ -394,27 +419,28 @@ public class CentralizedAgent implements CentralizedBehavior {
         }
 
         private static boolean checkWeight(State state) {
-            return state.firstTasks.entrySet().stream().allMatch(entry -> {
+            return (state.firstTasks.entrySet()).parallelStream().noneMatch(entry -> {
                 Vehicle vehicle = entry.getKey();
                 ConcreteTask task = entry.getValue();
 
                 int weight = 0;
-                do {
+
+                while (task != null) {
                     // Update carried weight
-                    if (task.action.equals(ConcreteTask.Action.PICKUP)) {
+                    if (task.action == ConcreteTask.Action.PICKUP) {
                         weight += task.task.weight;
                     } else {
                         weight -= task.task.weight;
                     }
 
                     if (vehicle.capacity() < weight) {
-                        return false;
+                        return true;
                     }
 
                     task = state.nextTask.get(task);
-                } while (task != null);
+                }
 
-                return true;
+                return false;
             });
         }
 
