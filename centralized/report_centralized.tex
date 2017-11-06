@@ -8,7 +8,7 @@
 
 % Put your group number and names in the author field %
 \title{\bf Excercise 4\\ Implementing a centralized agent}
-\author{Group \textnumero : Student 1, Student 2}
+\author{Group \textnumero 1: Tobias Bordenca, Paul Nicolet}
 
 
 % N.B.: The report should not be longer than 3 pages %
@@ -18,28 +18,59 @@
 \maketitle
 
 \section{Solution Representation}
+In order to generalize the problem for a vehicle to be able to carry multiple tasks, we decouple each task in two \textit{ConcreteTask} of type \textit{PICKUP} or \textit{DELIVERY}. In the rest of the document, a concrete task is considered to be a task.
 
 \subsection{Variables}
 % Describe the variables used in your solution representation %
+Our solution representation uses two variables: \textit{firstTasks} and \textit{nextTask}.
+
+\textit{firstTasks} maps a vehicle to its first task. Note that this first task will always be a pick-up task.
+
+\textit{nextTask} maps a task to its next one.
+
+It is important to note that we do not use variables to keep track of vehicles and times anymore. This is because the constraints related to those variables are automatically enforced by our model, as we will see in the next section.
 
 \subsection{Constraints}
 % Describe the constraints in your solution representation %
+We implement constraints by not constructing forbidden solutions (which violate constraints), except for the weight constraint which is manually checked. 
+
+By generating an initial solution which is valid, and then constructing only valid neighbors, constraints are never violated. As an example, originally, a pick-up task and its associated delivery are handled by the same vehicle, then when assigning the pick-up task to another vehicle, we also move the associated delivery, to keep the constraint satisfied.
+
+Our neighbor generation enforces the following constraints: the constraints 1 to 6 defined in the \textit{Finding the Optimal Delivery Plan} paper, and the following constraints, needed for the problem generalization: 
+
+\begin{itemize}
+	\item A pickup should occur before its delivery
+	\item A pickup and delivery should be handled by the same vehicle
+	\item A task can be picked up only if the total weight carried does not violate the total capacity
+\end{itemize}
 
 \subsection{Objective function}
 % Describe the function that you optimize %
+We decide on solution performance by taking into account its traveling cost, that is, the sum of \textit{distance} $\times$ \textit{cost per km} for each segment along a vehicle's path. 
 
 
 \section{Stochastic optimization}
 
 \subsection{Initial solution}
 % Describe how you generate the initial solution %
+Our initial solution attributes the same number of tasks to each vehicle in a round-robin fashion. Tasks are obviously associated to vehicles by pairs \textit{(pickup, delivery)}. Then, all the constraints are respected. 
 
 \subsection{Generating neighbours}
 % Describe how you generate neighbors %
+We generate neighbors by two different ways, for a random vehicle $v1$ that we pick: 
+
+\begin{itemize}
+	\item For each other vehicle, give the first task of $v1$ to the other. 
+	\item Exchange each task of $v1$ with every other. 
+\end{itemize}
+
+As said above, a neighbor is only generated if it respects the constraints.
 
 \subsection{Stochastic optimization algorithm}
 % Describe your stochastic optimization algorithm %
+We find the optimal solution as follows: starting with the initial solution as the current one, we generate all the possible neighbors which satisfy the constraints, and keep the best one in term of the objective function. Then, with a certain probability, we take the generated best neighbor as current solution (otherwise we keep the same solution). We repeat this until the cost does not change anymore. 
 
+We do not always take the generated best neighbor in order to avoid getting stuck in a local minimum. 
 
 \section{Results}
 
