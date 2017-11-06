@@ -177,7 +177,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         }
 
         public List<Plan> getPlans(List<Vehicle> vehicles) {
-            LinkedList<Plan> plans = new LinkedList<>();
+            ArrayList<Plan> plans = new ArrayList<>();
 
             vehicles.forEach(vehicle -> {
                 Plan plan = new Plan(vehicle.getCurrentCity());
@@ -216,14 +216,25 @@ public class CentralizedAgent implements CentralizedBehavior {
             } while (firstTasks.get(vehicle) != null);
 
             // Apply the change vehicle operator
-            for (Vehicle v: firstTasks.keySet()) {
+            for (Vehicle v : firstTasks.keySet()) {
                 if (vehicle == v) continue;
                 neighbors.add(changeVehicle(vehicle, v));
             }
 
             // Apply the change task order operator
+            ConcreteTask current = firstTasks.get(vehicle);
 
+            while (nextTask.get(current) != null) {
+                ConcreteTask other = nextTask.get(current);
 
+                while (nextTask.get(other) != null) {
+                    if (current.isRelated(other)) break;
+
+                    other = nextTask.get(other);
+                }
+
+                current = nextTask.get(current);
+            }
 
             return null;
         }
@@ -253,7 +264,7 @@ public class CentralizedAgent implements CentralizedBehavior {
                 next = nextTask.get(next);
             } while (delivery == null);
 
-            assert(false);
+            assert (false);
             return null;
         }
 
@@ -281,6 +292,10 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         public Topology.City getCity() {
             return action == Action.PICKUP ? task.pickupCity : task.deliveryCity;
+        }
+
+        public boolean isRelated(ConcreteTask other) {
+            return action == Action.PICKUP && other.action == Action.DELIVERY && task.equals(other.task);
         }
     }
 
