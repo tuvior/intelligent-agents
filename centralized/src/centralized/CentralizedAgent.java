@@ -42,9 +42,9 @@ public class CentralizedAgent implements CentralizedBehavior {
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
-        threshold = 0.8;
-        iterations = 10000;
-        convergenceThreshold = 500;
+        threshold = 0.4;
+        iterations = 100000;
+        convergenceThreshold = 2000;
     }
 
     @Override
@@ -62,14 +62,17 @@ public class CentralizedAgent implements CentralizedBehavior {
 
     /**
      * Compute the optimal solution with stochastic local search.
+     *
      * @param vehicles
      * @param tasks
      * @return The optimal plans
      */
     private List<Plan> stochasticLocalSearch(List<Vehicle> vehicles, TaskSet tasks) {
+        long deadline = System.currentTimeMillis() + timeout_plan;
         State state = new State(vehicles, tasks);
+        System.out.println("Initial solution cost: " + state.getCost());
         Random random = new Random();
-        double lastCost = 0;
+        double lastCost = Double.MAX_VALUE;
         int unchangedIterations = 0;
 
         for (int i = 0; i < iterations; i++) {
@@ -94,14 +97,18 @@ public class CentralizedAgent implements CentralizedBehavior {
                 state = candidate;
                 lastCost = cost;
             }
+
+            // stop if we're passing the planning deadline
+            if (System.currentTimeMillis() > deadline) break;
         }
 
-        System.out.println("Optimal solution cost: " + state.getCost());
+        System.out.println("Found solution cost: " + state.getCost());
         return state.getPlans(vehicles);
     }
 
     /**
      * Return the best neighbor in term of the objective function
+     *
      * @param neighbours
      * @return Best neighbor state
      */
@@ -133,28 +140,32 @@ public class CentralizedAgent implements CentralizedBehavior {
             firstTasks = new HashMap<>();
             nextTask = new HashMap<>();
 
-            int taskPerVehicle = (int) Math.ceil((double) tasks.size() / (double) vehicles.size());
+            vehicles.forEach(v -> firstTasks.put(v, null));
+
             Iterator<Task> taskIterator = tasks.iterator();
 
-            vehicles.forEach(v -> {
-                for (int i = 0; i < taskPerVehicle && taskIterator.hasNext(); i++) {
-                    Task task = taskIterator.next();
-                    ConcreteTask pickup = ConcreteTask.pickup(task);
-                    ConcreteTask deliver = ConcreteTask.delivery(task);
+            while (taskIterator.hasNext()) {
+                vehicles.forEach(v -> {
+                    if (taskIterator.hasNext()) {
+                        Task task = taskIterator.next();
 
-                    nextTask.put(pickup, deliver);
-                    nextTask.put(deliver, null);
+                        ConcreteTask pickup = ConcreteTask.pickup(task);
+                        ConcreteTask deliver = ConcreteTask.delivery(task);
 
-                    if (!firstTasks.containsKey(v)) {
-                        firstTasks.put(v, pickup);
-                    } else {
-                        ConcreteTask lastTask = firstTasks.get(v);
-                        while (nextTask.get(lastTask) != null) lastTask = nextTask.get(lastTask);
+                        nextTask.put(pickup, deliver);
+                        nextTask.put(deliver, null);
 
-                        nextTask.put(lastTask, pickup);
+                        if (firstTasks.get(v) == null) {
+                            firstTasks.put(v, pickup);
+                        } else {
+                            ConcreteTask lastTask = firstTasks.get(v);
+                            while (nextTask.get(lastTask) != null) lastTask = nextTask.get(lastTask);
+
+                            nextTask.put(lastTask, pickup);
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
         public State clone() {
@@ -168,18 +179,20 @@ public class CentralizedAgent implements CentralizedBehavior {
             final double[] cost = {0};
 
             firstTasks.forEach(((vehicle, concreteTask) -> {
-                double costPerKM = vehicle.costPerKm();
-                ConcreteTask current = concreteTask;
+                if (concreteTask != null) {
+                    double costPerKM = vehicle.costPerKm();
+                    ConcreteTask current = concreteTask;
 
-                cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
+                    cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
 
-                while (nextTask.get(current) != null) {
-                    ConcreteTask next = nextTask.get(current);
-                    Topology.City startCity = current.getCity();
-                    Topology.City endCity = next.getCity();
+                    while (nextTask.get(current) != null) {
+                        ConcreteTask next = nextTask.get(current);
+                        Topology.City startCity = current.getCity();
+                        Topology.City endCity = next.getCity();
 
-                    cost[0] += startCity.distanceTo(endCity) * costPerKM;
-                    current = next;
+                        cost[0] += startCity.distanceTo(endCity) * costPerKM;
+                        current = next;
+                    }
                 }
             }));
 
@@ -188,6 +201,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         /**
          * Generate the plan for each vehicle from the state
+         *
          * @param vehicles
          * @return The plan for each vehicle
          */
@@ -199,25 +213,28 @@ public class CentralizedAgent implements CentralizedBehavior {
                 Plan plan = new Plan(vehicle.getCurrentCity());
                 ConcreteTask current = firstTasks.get(vehicle);
 
-                // Append moves actions until the first pickup
-                vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
+                if (current != null) {
 
-                // Append first pickup
-                plan.appendPickup(current.task);
+                    // Append moves actions until the first pickup
+                    vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
 
-                // Then between each task, append moves and the task
-                while (nextTask.get(current) != null) {
-                    ConcreteTask next = nextTask.get(current);
-                    Topology.City nextCity = next.getCity();
-                    current.getCity().pathTo(nextCity).forEach(plan::appendMove);
+                    // Append first pickup
+                    plan.appendPickup(current.task);
 
-                    if (next.action == ConcreteTask.Action.PICKUP) {
-                        plan.appendPickup(next.task);
-                    } else {
-                        plan.appendDelivery(next.task);
+                    // Then between each task, append moves and the task
+                    while (nextTask.get(current) != null) {
+                        ConcreteTask next = nextTask.get(current);
+                        Topology.City nextCity = next.getCity();
+                        current.getCity().pathTo(nextCity).forEach(plan::appendMove);
+
+                        if (next.action == ConcreteTask.Action.PICKUP) {
+                            plan.appendPickup(next.task);
+                        } else {
+                            plan.appendDelivery(next.task);
+                        }
+
+                        current = next;
                     }
-
-                    current = next;
                 }
 
                 plans.add(plan);
@@ -229,6 +246,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
         /**
          * Generate all the neighbors
+         *
          * @return List of neighbors
          */
         public List<State> chooseNeighbours() {
@@ -240,7 +258,7 @@ public class CentralizedAgent implements CentralizedBehavior {
             do {
                 List<Vehicle> keys = new ArrayList<>(firstTasks.keySet());
                 vehicle = keys.get(random.nextInt(keys.size()));
-            } while (!firstTasks.containsKey(vehicle) || firstTasks.get(vehicle) == null);
+            } while (firstTasks.get(vehicle) == null);
 
             // Apply the change vehicle operator
             for (Vehicle v : firstTasks.keySet()) {
@@ -290,6 +308,7 @@ public class CentralizedAgent implements CentralizedBehavior {
 
             // Add to new vehicle
             ConcreteTask first = neighbor.firstTasks.get(v2);
+
             neighbor.firstTasks.put(v2, pickup);
             neighbor.nextTask.put(pickup, delivery);
             neighbor.nextTask.put(delivery, first);
