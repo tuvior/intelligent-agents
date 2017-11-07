@@ -20,7 +20,7 @@ public class CentralizedAgent implements CentralizedBehavior {
     private Agent agent;
     private long timeout_setup;
     private long timeout_plan;
-    private double threshold;
+    private double choiceThreshold;
     private int convergenceThreshold;
     private int iterations;
 
@@ -39,10 +39,14 @@ public class CentralizedAgent implements CentralizedBehavior {
         // the plan method cannot execute more than timeout_plan milliseconds
         timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
 
+        choiceThreshold = agent.readProperty("choice-threshold", Double.class, 0.4);
+        iterations = agent.readProperty("iterations", Integer.class, 100000);
+        convergenceThreshold = agent.readProperty("convergence-threshold", Integer.class, 2000);
+
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
-        threshold = 0.4;
+        choiceThreshold = 0.4;
         iterations = 100000;
         convergenceThreshold = 2000;
     }
@@ -93,7 +97,7 @@ public class CentralizedAgent implements CentralizedBehavior {
                 break;
             }
 
-            if (random.nextDouble() <= threshold) {
+            if (random.nextDouble() <= choiceThreshold) {
                 state = candidate;
                 lastCost = cost;
             }

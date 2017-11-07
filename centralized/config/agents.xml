@@ -12,6 +12,9 @@
 	<agent name="centralized-main">
 		<set class-path="bin/"/>
 		<set class-name="centralized.CentralizedAgent"/>
+		<set convergence-threshold="2000"/>
+		<set iterations="100000"/>
+		<set choice-threshold="0.4"/>
 	</agent>
 	
 </agents>
