@@ -22,6 +22,7 @@ public class CentralizedAgent implements CentralizedBehavior {
     private long timeout_plan;
     private double threshold;
     private int convergenceThreshold;
+    private int iterations;
 
     @Override
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
@@ -41,7 +42,8 @@ public class CentralizedAgent implements CentralizedBehavior {
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
-        threshold = 0.5;
+        threshold = 0.8;
+        iterations = 10000;
         convergenceThreshold = 500;
     }
 
@@ -70,7 +72,7 @@ public class CentralizedAgent implements CentralizedBehavior {
         double lastCost = 0;
         int unchangedIterations = 0;
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < iterations; i++) {
             List<State> neighbours = state.chooseNeighbours();
             State candidate = localChoice(neighbours);
 
@@ -83,7 +85,10 @@ public class CentralizedAgent implements CentralizedBehavior {
             }
 
             // if the solution hasn't gotten better in convergenceThreshold iterations, return it
-            if (unchangedIterations > convergenceThreshold) break;
+            if (unchangedIterations > convergenceThreshold) {
+                System.out.println("Unchanged");
+                break;
+            }
 
             if (random.nextDouble() <= threshold) {
                 state = candidate;
@@ -91,7 +96,7 @@ public class CentralizedAgent implements CentralizedBehavior {
             }
         }
 
-
+        System.out.println("Optimal solution cost: " + state.getCost());
         return state.getPlans(vehicles);
     }
 

@@ -80,9 +80,15 @@ We do not always take the generated best neighbor in order to avoid getting stuc
 \subsubsection{Setting}
 % Describe the settings of your experiment: topology, task configuration, number of tasks, number of vehicles, etc. %
 % and the parameters you are analyzing %
+We use the England topology, with 50 tasks and 4 vehicles, in order to observe the behaviour under the variations of three parameters: \textit{choiceThreshold} responsible for choosing the best next solution or not, \textit{convergenceThreshold} responsible for stopping the optimization after a given number of equal costs, and \textit{iterations} controlling the total number of iterations of the algorithm.
 
 \subsubsection{Observations}
 % Describe the experimental results and the conclusions you inferred from these results %
+We notice that \textit{choiceThreshold} is mostly responsible for the variance of the optimal solution, i.e., a large threshold implies choosing the next best neighbor most of the time, and then getting the the same minima. A small threshold also implies a high convergence time, since we exploit more the stochastic aspect, by changing the optimization direction randomly.
+
+When increasing the \textit{convergenceThreshold}, we increase the validity of our optimal solution, meaning that such a large threshold will give more chance to the stochastic algorithm to get out of a local minima, then a selected solution is more likely to be the right one. 
+
+As a conclusion, we see that \textit{choiceThreshold} and \textit{convergenceThreshold} are two ways to tune the optimization by restricting the number of iterations and playing with probabilities. However, the only way to make sure we get to the true optimal solution is to use a very large \textit{iterations} number, but still providing the possibility to get out of local minimums with \textit{choiceThreshold}.
 
 \subsection{Experiment 2: Different configurations}
 % Run simulations for different configurations of the environment (i.e. different tasks and number of vehicles) %
