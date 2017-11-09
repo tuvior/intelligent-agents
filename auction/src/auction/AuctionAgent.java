@@ -2,9 +2,11 @@ package auction;
 
 //the list of imports
 
+import logist.LogistSettings;
 import logist.Measures;
 import logist.agent.Agent;
 import logist.behavior.AuctionBehavior;
+import logist.config.Parsers;
 import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
@@ -17,11 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * A very simple auction agent that assigns all tasks to its first vehicle and
- * handles them sequentially.
- * 
- */
 public class AuctionAgent implements AuctionBehavior {
 
 	private Topology topology;
@@ -30,10 +27,19 @@ public class AuctionAgent implements AuctionBehavior {
 	private Random random;
 	private Vehicle vehicle;
 	private City currentCity;
+	private long timeout_setup;
+	private long timeout_plan;
 
 	@Override
-	public void setup(Topology topology, TaskDistribution distribution,
-			Agent agent) {
+	public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
+
+		try {
+			LogistSettings ls = Parsers.parseSettings("config/settings_default.xml");
+			timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP);
+			timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
+		} catch (Exception ex) {
+			System.err.println("There was a problem loading the configuration file.");
+		}
 
 		this.topology = topology;
 		this.distribution = distribution;
