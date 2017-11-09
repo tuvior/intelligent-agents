@@ -46,9 +46,6 @@ public class CentralizedAgent implements CentralizedBehavior {
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
-        choiceThreshold = 0.4;
-        iterations = 100000;
-        convergenceThreshold = 2000;
     }
 
     @Override
