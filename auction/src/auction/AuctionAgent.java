@@ -3,7 +3,6 @@ package auction;
 //the list of imports
 
 import logist.LogistSettings;
-import logist.Measures;
 import logist.agent.Agent;
 import logist.behavior.AuctionBehavior;
 import logist.config.Parsers;
@@ -15,23 +14,30 @@ import logist.task.TaskSet;
 import logist.topology.Topology;
 import logist.topology.Topology.City;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class AuctionAgent implements AuctionBehavior {
+
+    private static final int COST_KM = 5;
 
     private Topology topology;
     private TaskDistribution distribution;
     private Agent agent;
     private Random random;
     private Vehicle vehicle;
-    private City currentCity;
     private long timeout_setup;
     private long timeout_plan;
     private long timeout_bid;
 
-    private static boolean [] xd  = new boolean [Integer.MAX_VALUE];
+    private Adversary adversary;
+    private List<Task> tasks;
+    private long payment;
+
+    /**
+     * ASSUMPTIONS:
+     * - constant price per km
+     * - always 2 agents
+     */
 
     @Override
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
@@ -49,19 +55,63 @@ public class AuctionAgent implements AuctionBehavior {
         this.distribution = distribution;
         this.agent = agent;
         this.vehicle = agent.vehicles().get(0);
-        this.currentCity = vehicle.homeCity();
+        this.adversary = new Adversary();
+        this.tasks = new ArrayList<>();
+        this.payment = 0;
 
-        long seed = -9019554669489983951L * currentCity.hashCode() * agent.id();
-        this.random = new Random(seed);
+        this.random = new Random();
     }
 
     @Override
     public void auctionResult(Task previous, int winner, Long[] bids) {
-        if (winner == agent.id()) {
-            currentCity = previous.deliveryCity;
+        boolean win = winner == agent.id();
+        if (win) {
+            tasks.add(previous);
+            payment += bids[agent.id()];
+        }
+
+        switch (agent.id()) {
+            case 0:
+                adversary.auctionResult(previous, bids[1], !win);
+                break;
+            case 1:
+                adversary.auctionResult(previous, bids[0], !win);
+                break;
         }
     }
 
+    @Override
+    public Long askPrice(Task task) {
+        // TODO: undercut adversary but don't bid too much in case of bad resulting plan or loss of profit
+        return 0L;
+    }
+
+    @Override
+    public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
+        // TODO: stochastic local search again
+        return null;
+    }
+
+    /**
+     * The method generates an optimal plan with all assigned tasks and addition of newTask
+     * The current total payment received by the agent is then compared against the cost of this new optimal plan,
+     * the difference between the two gives a lower bound in terms of bid required to generate profit if the auction
+     * was won.
+     *
+     * @param newTask auctioned task to be evaluated
+     * @return the minimum bid to be even in terms of revenue
+     */
+    private long planCostRequirement(Task newTask) {
+        // TODO: stochastic local search I guess, then (plan cost - payment) is the result
+        return 0;
+    }
+
+    /**
+     * TODO: figure out if we can find something meaningful to optimise undercutting prices without losses
+     *
+     * @param topology     the topology for this simulation
+     * @param distribution the task distribution for this simulation
+     */
     private void evaluateTopology(Topology topology, TaskDistribution distribution) {
         topology.cities().forEach(city -> {
             final double[] totalProb1 = {0};
@@ -73,59 +123,79 @@ public class AuctionAgent implements AuctionBehavior {
         });
     }
 
-    @Override
-    public Long askPrice(Task task) {
+    /**
+     * class to represent everything related to the adversary
+     */
+    public class Adversary {
+        public List<Task> tasks;
+        public HashMap<Task, Long> bids;
 
-        if (vehicle.capacity() < task.weight)
-            return null;
-
-        long distanceTask = task.pickupCity.distanceUnitsTo(task.deliveryCity);
-        long distanceSum = distanceTask
-                + currentCity.distanceUnitsTo(task.pickupCity);
-        double marginalCost = Measures.unitsToKM(distanceSum
-                * vehicle.costPerKm());
-
-        double ratio = 1.0 + (random.nextDouble() * 0.05 * task.id);
-        double bid = ratio * marginalCost;
-
-        return (long) Math.round(bid);
-    }
-
-    @Override
-    public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
-
-//		System.out.println("Agent " + agent.id() + " has tasks " + tasks);
-
-        Plan planVehicle1 = naivePlan(vehicle, tasks);
-
-        List<Plan> plans = new ArrayList<Plan>();
-        plans.add(planVehicle1);
-        while (plans.size() < vehicles.size())
-            plans.add(Plan.EMPTY);
-
-        return plans;
-    }
-
-    private Plan naivePlan(Vehicle vehicle, TaskSet tasks) {
-        City current = vehicle.getCurrentCity();
-        Plan plan = new Plan(current);
-
-        for (Task task : tasks) {
-            // move: current city => pickup location
-            for (City city : current.pathTo(task.pickupCity))
-                plan.appendMove(city);
-
-            plan.appendPickup(task);
-
-            // move: pickup location => delivery location
-            for (City city : task.path())
-                plan.appendMove(city);
-
-            plan.appendDelivery(task);
-
-            // set current city
-            current = task.deliveryCity;
+        public Adversary() {
+            tasks = new ArrayList<>();
+            bids = new HashMap<>();
         }
-        return plan;
+
+        public void auctionResult(Task task, long bid, boolean winner) {
+            if (winner) tasks.add(task);
+            bids.put(task, bid);
+        }
+
+        /**
+         * The method tries to estimate the best case scenario for the adversary adding this task to their plan
+         * it picks a city that already needs to be visited as bridge for the pickup and then assumes no
+         * direct delivery will be performed. Without reusing the bridge city (as it would imply backtracking)
+         * it looks for another city that will need to be visited and calculates the cost of delivery to only
+         * start from there, meaning that the rest of the path will be part of the already existing plan.
+         * In case of first task it assumes the distance to pickup as average distance from the pickup city
+         *
+         * @param newTask the task being auctioned
+         * @return a lower bound for the adversary's cost
+         */
+        public double getMinCostForNewTask(Task newTask) {
+            double pickupGap = Double.POSITIVE_INFINITY;
+            final double[] deliveryGap = {newTask.pickupCity.distanceTo(newTask.deliveryCity)};
+
+            if (tasks.size() == 0) {
+                return (averageDistance(newTask.pickupCity) + deliveryGap[0]) * COST_KM;
+            }
+
+            Set<City> bridgeCities = new HashSet<>();
+
+            for (Task t : tasks) {
+                double pickupDist = t.pickupCity.distanceTo(newTask.pickupCity);
+                if (pickupDist < pickupGap) {
+                    pickupGap = pickupDist;
+                    bridgeCities.clear();
+                    bridgeCities.add(t.pickupCity);
+                } else if (pickupDist == pickupGap) {
+                    bridgeCities.add(t.pickupCity);
+                }
+                double deliveryDist = t.deliveryCity.distanceTo(newTask.pickupCity);
+                if (deliveryDist < pickupGap) {
+                    pickupGap = deliveryDist;
+                    bridgeCities.clear();
+                    bridgeCities.add(t.deliveryCity);
+                } else if (deliveryDist == pickupGap) {
+                    bridgeCities.add(t.deliveryCity);
+                }
+            }
+
+            bridgeCities.forEach(bridgeCity -> {
+                for (Task t : tasks) {
+                    if (!t.pickupCity.equals(bridgeCity) && t.pickupCity.distanceTo(newTask.pickupCity) < deliveryGap[0]) {
+                        deliveryGap[0] = t.pickupCity.distanceTo(newTask.pickupCity);
+                    }
+                    if (!t.deliveryCity.equals(bridgeCity) && t.deliveryCity.distanceTo(newTask.pickupCity) < deliveryGap[0]) {
+                        deliveryGap[0] = t.deliveryCity.distanceTo(newTask.pickupCity);
+                    }
+                }
+            });
+
+            return (deliveryGap[0] + pickupGap) * COST_KM;
+        }
+
+        private double averageDistance(City city) {
+            return topology.cities().stream().mapToDouble(city::distanceTo).sum() / topology.cities().size();
+        }
     }
 }
