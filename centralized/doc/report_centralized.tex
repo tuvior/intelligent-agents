@@ -103,7 +103,7 @@ Experiments were performed on the England topology, with tasks ranging from 1 to
 
 First observation is that even with trivial amounts of tasks we can hardly say that a real optimal solution is found, as a difference in optimal cost is always observable between different runs of the algorithm.
 
-More often that not, when working with a low amount of tasks it is more efficient for some vehicles to not do anything at all, as the tasks will be delivered by other vehicles that are found in the vicinity, and the inactive vehicle won't contribute to the cost of the centralised solution by not consuming fuel. There are cases where even if \textit{nTasks} > \textit{nVehicles} the found solution will involve a single vehicle delivering all tasks.
+More often that not, when working with a low amount of tasks it is more efficient for some vehicles to not do anything at all, as the tasks will be delivered by other vehicles that are found in the vicinity, and the inactive vehicle won't contribute to the cost of the centralised solution by not consuming fuel. There are cases where even if \textit{nTasks} $>$ \textit{nVehicles} the found solution will involve a single vehicle delivering all tasks.
 
 The number of vehicles and the size of the task set affect complexity in different ways. With more vehicles the neighbour generation has more variables to choose from, and we could argue that this could increase the chance of getting stuck in a local minimum that is not in the neighbourhood of the real optimal solution. Yet this doesn't affect much the computation complexity. On the other hand having a larger task set means that every iteration the number of neighbours that will be generated is larger and this will affect the execution time more. 
 
