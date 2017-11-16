@@ -13,6 +13,7 @@ import logist.topology.Topology;
 import logist.topology.Topology.City;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class AuctionAgent implements AuctionBehavior {
 
@@ -22,7 +23,7 @@ public class AuctionAgent implements AuctionBehavior {
     private TaskDistribution distribution;
     private Agent agent;
     private Random random;
-    private Vehicle vehicle;
+    private List<FastVehicle> vehicles;
     private long timeout_setup;
     private long timeout_plan;
     private long timeout_bid;
@@ -52,12 +53,16 @@ public class AuctionAgent implements AuctionBehavior {
         this.topology = topology;
         this.distribution = distribution;
         this.agent = agent;
-        this.vehicle = agent.vehicles().get(0);
-        this.adversary = new Adversary();
         this.tasks = new ArrayList<>();
         this.payment = 0;
-
         this.random = new Random();
+
+        // Generate vehicles
+        agent.vehicles().forEach(v -> this.vehicles.add(new FastVehicle(v)));
+
+        // Init adversary
+        List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.NEIGHBOR);
+        this.adversary = new Adversary(advVehicles);
     }
 
     @Override
@@ -118,11 +123,13 @@ public class AuctionAgent implements AuctionBehavior {
      * class to represent everything related to the adversary
      */
     public class Adversary {
+        public List<FastVehicle> vehicles;
         public List<Task> tasks;
         public HashMap<Task, Long> bids;
         public long payment;
 
-        public Adversary() {
+        public Adversary(List<FastVehicle> vehicles) {
+            this.vehicles = vehicles;
             tasks = new ArrayList<>();
             bids = new HashMap<>();
             payment = 0;
