@@ -57,7 +57,7 @@ public class Planner {
                 lastCost = cost;
             }
 
-            temperature = (time - start) / (double) timeout;
+            temperature = 1 - ((time - start) / (double) timeout);
         }
 
         return lastCost;
