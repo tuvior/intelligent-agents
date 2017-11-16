@@ -69,15 +69,7 @@ public class AuctionAgent implements AuctionBehavior {
             tasks.add(previous);
             payment += bids[agent.id()];
         }
-
-        switch (agent.id()) {
-            case 0:
-                adversary.auctionResult(previous, bids[1], !win);
-                break;
-            case 1:
-                adversary.auctionResult(previous, bids[0], !win);
-                break;
-        }
+        adversary.auctionResult(previous, bids[1 - agent.id()], !win);
     }
 
     @Override
