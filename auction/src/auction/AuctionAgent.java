@@ -1,33 +1,35 @@
-package auction
+package auction;
 
-import logist.LogistSettings
-import logist.agent.Agent
-import logist.behavior.AuctionBehavior
-import logist.config.Parsers
-import logist.plan.Plan
-import logist.simulation.Vehicle
-import logist.task.Task
-import logist.task.TaskDistribution
-import logist.task.TaskSet
-import logist.topology.Topology
-import logist.topology.Topology.City
+import logist.LogistSettings;
+import logist.agent.Agent;
+import logist.behavior.AuctionBehavior;
+import logist.config.Parsers;
+import logist.plan.Plan;
+import logist.simulation.Vehicle;
+import logist.task.Task;
+import logist.task.TaskDistribution;
+import logist.task.TaskSet;
+import logist.topology.Topology;
+import logist.topology.Topology.City;
 
-import java.util.*
+import java.util.*;
 
-class AuctionAgent : AuctionBehavior {
+public class AuctionAgent implements AuctionBehavior {
 
-    private var topology: Topology? = null
-    private var distribution: TaskDistribution? = null
-    private var agent: Agent? = null
-    private var random: Random? = null
-    private var vehicle: Vehicle? = null
-    private var timeout_setup: Long = 0
-    private var timeout_plan: Long = 0
-    private var timeout_bid: Long = 0
+    private static final int COST_KM = 5;
 
-    private var adversary: Adversary? = null
-    private var tasks: MutableList<Task>? = null
-    private var payment: Long = 0
+    private Topology topology;
+    private TaskDistribution distribution;
+    private Agent agent;
+    private Random random;
+    private Vehicle vehicle;
+    private long timeout_setup;
+    private long timeout_plan;
+    private long timeout_bid;
+
+    private Adversary adversary;
+    private List<Task> tasks;
+    private long payment;
 
     /**
      * ASSUMPTIONS:
@@ -35,49 +37,50 @@ class AuctionAgent : AuctionBehavior {
      * - always 2 agents
      */
 
-    override fun setup(topology: Topology, distribution: TaskDistribution, agent: Agent) {
+    @Override
+    public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
 
         try {
-            val ls = Parsers.parseSettings("config/settings_default.xml")
-            timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP)
-            timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN)
-            timeout_bid = ls.get(LogistSettings.TimeoutKey.BID)
-        } catch (ex: Exception) {
-            System.err.println("There was a problem loading the configuration file.")
+            LogistSettings ls = Parsers.parseSettings("config/settings_default.xml");
+            timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP);
+            timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
+            timeout_bid = ls.get(LogistSettings.TimeoutKey.BID);
+        } catch (Exception ex) {
+            System.err.println("There was a problem loading the configuration file.");
         }
 
-        this.topology = topology
-        this.distribution = distribution
-        this.agent = agent
-        this.vehicle = agent.vehicles()[0]
-        this.adversary = Adversary()
-        this.tasks = ArrayList()
-        this.payment = 0
+        this.topology = topology;
+        this.distribution = distribution;
+        this.agent = agent;
+        this.vehicle = agent.vehicles().get(0);
+        this.adversary = new Adversary();
+        this.tasks = new ArrayList<>();
+        this.payment = 0;
 
-        this.random = Random()
+        this.random = new Random();
     }
 
-    override fun auctionResult(previous: Task, winner: Int, bids: Array<Long>) {
-        val win = winner == agent!!.id()
+    @Override
+    public void auctionResult(Task previous, int winner, Long[] bids) {
+        boolean win = winner == agent.id();
         if (win) {
-            tasks!!.add(previous)
-            payment += bids[agent!!.id()]
+            tasks.add(previous);
+            payment += bids[agent.id()];
         }
 
-        when (agent!!.id()) {
-            0 -> adversary!!.auctionResult(previous, bids[1], !win)
-            1 -> adversary!!.auctionResult(previous, bids[0], !win)
-        }
+        adversary.auctionResult(previous, bids[1 - agent.id()], !win);
     }
 
-    override fun askPrice(task: Task): Long? {
+    @Override
+    public Long askPrice(Task task) {
         // TODO: undercut adversary but don't bid too much in case of bad resulting plan or loss of profit
-        return 0L
+        return 0L;
     }
 
-    override fun plan(vehicles: List<Vehicle>, tasks: TaskSet): List<Plan>? {
+    @Override
+    public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
         // TODO: stochastic local search again
-        return null
+        return null;
     }
 
     /**
@@ -89,9 +92,9 @@ class AuctionAgent : AuctionBehavior {
      * @param newTask auctioned task to be evaluated
      * @return the minimum bid to be even in terms of revenue
      */
-    private fun planCostRequirement(newTask: Task): Long {
+    private long planCostRequirement(Task newTask) {
         // TODO: stochastic local search I guess, then (plan cost - payment) is the result
-        return 0
+        return 0;
     }
 
     /**
@@ -100,32 +103,37 @@ class AuctionAgent : AuctionBehavior {
      * @param topology     the topology for this simulation
      * @param distribution the task distribution for this simulation
      */
-    private fun evaluateTopology(topology: Topology, distribution: TaskDistribution) {
-        topology.cities().forEach { city ->
-            val totalProb1 = doubleArrayOf(0.0)
-            val totalProb2 = doubleArrayOf(0.0)
-            topology.cities().forEach { city2 ->
-                totalProb1[0] += distribution.probability(city, city2)
-                totalProb2[0] += distribution.probability(city2, city)
-            }
-        }
+    private void evaluateTopology(Topology topology, TaskDistribution distribution) {
+        topology.cities().forEach(city -> {
+            final double[] totalProb1 = {0};
+            final double[] totalProb2 = {0};
+            topology.cities().forEach(city2 -> {
+                totalProb1[0] += distribution.probability(city, city2);
+                totalProb2[0] += distribution.probability(city2, city);
+            });
+        });
     }
 
     /**
      * class to represent everything related to the adversary
      */
-    inner class Adversary {
-        var tasks: MutableList<Task>
-        var bids: HashMap<Task, Long>
+    public class Adversary {
+        public List<Task> tasks;
+        public HashMap<Task, Long> bids;
+        public long payment;
 
-        init {
-            tasks = ArrayList()
-            bids = HashMap()
+        public Adversary() {
+            tasks = new ArrayList<>();
+            bids = new HashMap<>();
+            payment = 0;
         }
 
-        fun auctionResult(task: Task, bid: Long, winner: Boolean) {
-            if (winner) tasks.add(task)
-            bids.put(task, bid)
+        public void auctionResult(Task task, long bid, boolean winner) {
+            if (winner) {
+                payment += bid;
+                tasks.add(task);
+            }
+            bids.put(task, bid);
         }
 
         /**
@@ -139,56 +147,51 @@ class AuctionAgent : AuctionBehavior {
          * @param newTask the task being auctioned
          * @return a lower bound for the adversary's cost
          */
-        fun getMinCostForNewTask(newTask: Task): Double {
-            var pickupGap = java.lang.Double.POSITIVE_INFINITY
-            val deliveryGap = doubleArrayOf(newTask.pickupCity.distanceTo(newTask.deliveryCity))
+        public double getMinCostForNewTask(Task newTask) {
+            double pickupGap = Double.POSITIVE_INFINITY;
+            final double[] deliveryGap = {newTask.pickupCity.distanceTo(newTask.deliveryCity)};
 
-            if (tasks.size == 0) {
-                return (averageDistance(newTask.pickupCity) + deliveryGap[0]) * COST_KM
+            if (tasks.size() == 0) {
+                return (averageDistance(newTask.pickupCity) + deliveryGap[0]) * COST_KM;
             }
 
-            val bridgeCities = HashSet<City>()
+            Set<City> bridgeCities = new HashSet<>();
 
-            for (t in tasks) {
-                val pickupDist = t.pickupCity.distanceTo(newTask.pickupCity)
+            for (Task t : tasks) {
+                double pickupDist = t.pickupCity.distanceTo(newTask.pickupCity);
                 if (pickupDist < pickupGap) {
-                    pickupGap = pickupDist
-                    bridgeCities.clear()
-                    bridgeCities.add(t.pickupCity)
+                    pickupGap = pickupDist;
+                    bridgeCities.clear();
+                    bridgeCities.add(t.pickupCity);
                 } else if (pickupDist == pickupGap) {
-                    bridgeCities.add(t.pickupCity)
+                    bridgeCities.add(t.pickupCity);
                 }
-                val deliveryDist = t.deliveryCity.distanceTo(newTask.pickupCity)
+                double deliveryDist = t.deliveryCity.distanceTo(newTask.pickupCity);
                 if (deliveryDist < pickupGap) {
-                    pickupGap = deliveryDist
-                    bridgeCities.clear()
-                    bridgeCities.add(t.deliveryCity)
+                    pickupGap = deliveryDist;
+                    bridgeCities.clear();
+                    bridgeCities.add(t.deliveryCity);
                 } else if (deliveryDist == pickupGap) {
-                    bridgeCities.add(t.deliveryCity)
+                    bridgeCities.add(t.deliveryCity);
                 }
             }
 
-            bridgeCities.forEach { bridgeCity ->
-                for (t in tasks) {
-                    if (t.pickupCity != bridgeCity && t.pickupCity.distanceTo(newTask.pickupCity) < deliveryGap[0]) {
-                        deliveryGap[0] = t.pickupCity.distanceTo(newTask.pickupCity)
+            bridgeCities.forEach(bridgeCity -> {
+                for (Task t : tasks) {
+                    if (!t.pickupCity.equals(bridgeCity) && t.pickupCity.distanceTo(newTask.pickupCity) < deliveryGap[0]) {
+                        deliveryGap[0] = t.pickupCity.distanceTo(newTask.pickupCity);
                     }
-                    if (t.deliveryCity != bridgeCity && t.deliveryCity.distanceTo(newTask.pickupCity) < deliveryGap[0]) {
-                        deliveryGap[0] = t.deliveryCity.distanceTo(newTask.pickupCity)
+                    if (!t.deliveryCity.equals(bridgeCity) && t.deliveryCity.distanceTo(newTask.pickupCity) < deliveryGap[0]) {
+                        deliveryGap[0] = t.deliveryCity.distanceTo(newTask.pickupCity);
                     }
                 }
-            }
+            });
 
-            return (deliveryGap[0] + pickupGap) * COST_KM
+            return (deliveryGap[0] + pickupGap) * COST_KM;
         }
 
-        private fun averageDistance(city: City): Double {
-            return topology!!.cities().stream().mapToDouble(ToDoubleFunction<City> { city.distanceTo(it) }).sum() / topology!!.cities().size
+        private double averageDistance(City city) {
+            return topology.cities().stream().mapToDouble(city::distanceTo).sum() / topology.cities().size();
         }
-    }
-
-    companion object {
-
-        private val COST_KM = 5
     }
 }
