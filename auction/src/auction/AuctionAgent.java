@@ -23,10 +23,11 @@ public class AuctionAgent implements AuctionBehavior {
     private TaskDistribution distribution;
     private Agent agent;
     private Random random;
-    private List<FastVehicle> vehicles;
     private long timeout_setup;
     private long timeout_plan;
     private long timeout_bid;
+
+    private Planner planner;
 
     private Adversary adversary;
     private List<Task> tasks;
@@ -34,7 +35,6 @@ public class AuctionAgent implements AuctionBehavior {
 
     /**
      * ASSUMPTIONS:
-     * - constant price per km
      * - always 2 agents
      */
 
@@ -56,13 +56,13 @@ public class AuctionAgent implements AuctionBehavior {
         this.tasks = new ArrayList<>();
         this.payment = 0;
         this.random = new Random();
-
-        // Generate vehicles
-        agent.vehicles().forEach(v -> this.vehicles.add(new FastVehicle(v)));
+        this.planner = new Planner(agent.vehicles());
 
         // Init adversary
         List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.NEIGHBOR);
         this.adversary = new Adversary(advVehicles);
+
+
     }
 
     @Override
@@ -71,6 +71,7 @@ public class AuctionAgent implements AuctionBehavior {
         if (win) {
             tasks.add(previous);
             payment += bids[agent.id()];
+            planner.confirmNewPlan();
         }
         
         adversary.auctionResult(previous, bids[1 - agent.id()], !win);
@@ -78,7 +79,7 @@ public class AuctionAgent implements AuctionBehavior {
 
     @Override
     public Long askPrice(Task task) {
-        // TODO: undercut adversary but don't bid too much in case of bad resulting plan or loss of profit
+        double newAdvPrice = adversary.planner.simulateWithNewTask(task, timeout_bid);
         return 0L;
     }
 
@@ -123,15 +124,17 @@ public class AuctionAgent implements AuctionBehavior {
      * class to represent everything related to the adversary
      */
     public class Adversary {
-        public List<FastVehicle> vehicles;
+        public List<? extends Vehicle> vehicles;
         public List<Task> tasks;
         public HashMap<Task, Long> bids;
+        public Planner planner;
         public long payment;
 
-        public Adversary(List<FastVehicle> vehicles) {
+        public Adversary(List<? extends Vehicle> vehicles) {
             this.vehicles = vehicles;
             tasks = new ArrayList<>();
             bids = new HashMap<>();
+            planner = new Planner(vehicles);
             payment = 0;
         }
 
@@ -139,6 +142,7 @@ public class AuctionAgent implements AuctionBehavior {
             if (winner) {
                 payment += bid;
                 tasks.add(task);
+                planner.confirmNewPlan();
             }
             bids.put(task, bid);
         }

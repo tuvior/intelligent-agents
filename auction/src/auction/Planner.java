@@ -17,7 +17,7 @@ public class Planner {
     private Random random;
     private double temperature;
 
-    public Planner(List<Vehicle> vehicles) {
+    public Planner(List<? extends Vehicle> vehicles) {
         temperature = MAX_TEMP;
         latestState = new State(vehicles);
         random = new Random();
@@ -36,7 +36,7 @@ public class Planner {
         return latestState.getPlans(vehicles);
     }
 
-    public double simulateWithNewTask(Task task, int timeout) {
+    public double simulateWithNewTask(Task task, long timeout) {
         long start = System.currentTimeMillis();
         long deadline = start + timeout;
         latestSimulation = latestState.clone();
@@ -98,7 +98,7 @@ public class Planner {
 
         }
 
-        public State(List<Vehicle> vehicles) {
+        public State(List<? extends Vehicle> vehicles) {
             firstTasks = new HashMap<>();
             nextTask = new HashMap<>();
 
