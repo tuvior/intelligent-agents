@@ -36,15 +36,17 @@ public class Planner {
         return latestState.getPlans(vehicles);
     }
 
-    public double simulateWithNewTask(Task task, long timeout) {
+    public double simulateWithNewTask(Task task, long timeout, boolean getMarginal) {
         long start = System.currentTimeMillis();
         long deadline = start + timeout;
         latestSimulation = latestState.clone();
         latestSimulation.addTask(task);
         temperature = MAX_TEMP;
 
+        double startCost =latestSimulation.getCost();
+
         long time;
-        double lastCost = latestSimulation.getCost();
+        double lastCost = startCost;
 
         while ((time = System.currentTimeMillis()) < deadline) {
             List<State> neighbours = latestSimulation.chooseNeighbours();
@@ -60,7 +62,7 @@ public class Planner {
             temperature = 1 - ((time - start) / (double) timeout);
         }
 
-        return lastCost;
+        return getMarginal ? start - lastCost :lastCost;
     }
 
 

@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class AuctionAgent implements AuctionBehavior {
 
     private static final int COST_KM = 5;
+    private static final double LOSS_THRESHOLD = 0.8;
 
     private Topology topology;
     private TaskDistribution distribution;
@@ -61,8 +62,6 @@ public class AuctionAgent implements AuctionBehavior {
         // Init adversary
         List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.NEIGHBOR);
         this.adversary = new Adversary(advVehicles);
-
-
     }
 
     @Override
@@ -79,7 +78,20 @@ public class AuctionAgent implements AuctionBehavior {
 
     @Override
     public Long askPrice(Task task) {
-        double newAdvPrice = adversary.planner.simulateWithNewTask(task, timeout_bid);
+        double newAdvPrice = adversary.planner.simulateWithNewTask(task, timeout_bid, false);
+        long advGain = adversary.payment;
+        long marginalCost = (long) newAdvPrice - advGain;
+
+        long ourMarginal = (long) planner.simulateWithNewTask(task, timeout_bid, true);
+
+        if (marginalCost >= ourMarginal) {
+            // TODO: adjust
+        } else if (marginalCost > ourMarginal * LOSS_THRESHOLD) {
+            
+        } else {
+            return ourMarginal;
+        }
+
         return 0L;
     }
 
