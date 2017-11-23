@@ -45,7 +45,7 @@ public class AuctionAgent implements AuctionBehavior {
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
 
         try {
-            LogistSettings ls = Parsers.parseSettings("config/settings_default.xml");
+            LogistSettings ls = Parsers.parseSettings("config/settings_auction.xml");
             timeout_setup = ls.get(LogistSettings.TimeoutKey.SETUP);
             timeout_plan = ls.get(LogistSettings.TimeoutKey.PLAN);
             timeout_bid = ls.get(LogistSettings.TimeoutKey.BID);
@@ -68,6 +68,7 @@ public class AuctionAgent implements AuctionBehavior {
 
     @Override
     public void auctionResult(Task previous, int winner, Long[] bids) {
+        System.out.println("Auction Result: " + previous + " " + winner + " " + Arrays.toString(bids));
         boolean win = winner == agent.id();
         if (win) {
             tasks.add(previous);
@@ -80,11 +81,16 @@ public class AuctionAgent implements AuctionBehavior {
 
     @Override
     public Long askPrice(Task task) {
-        double newAdvPrice = adversary.planner.simulateWithNewTask(task, timeout_bid, false);
+        System.out.println("ask price" + task);
+        double newAdvPrice = adversary.planner.simulateWithNewTask(task, 10000, false);
         long advGain = adversary.payment;
         long marginalCost = (long) newAdvPrice - advGain;
 
-        long ourMarginal = (long) planner.simulateWithNewTask(task, timeout_bid, true);
+        System.out.println(newAdvPrice);
+
+        long ourMarginal = (long) planner.simulateWithNewTask(task, 10000, true);
+
+        System.out.println(ourMarginal);
 
         if (marginalCost >= ourMarginal) {
             return (long) Math.max(ourMarginal, marginalCost * UNDERCUT_RATIO);

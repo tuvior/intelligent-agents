@@ -47,7 +47,7 @@ public class FastVehicle implements Vehicle {
         int nVehicles = vehicles.size();
         if (!sameNumber) {
             nVehicles = random.nextBoolean() ? nVehicles - 1 : nVehicles + 1;
-            nVehicles = Math.max(1, nVehicles);
+            nVehicles = Math.max(2, nVehicles);
         }
 
         // Generate vehicles

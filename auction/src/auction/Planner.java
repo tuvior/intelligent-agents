@@ -40,13 +40,14 @@ public class Planner {
         long start = System.currentTimeMillis();
         long deadline = start + timeout;
         latestSimulation = latestState.clone();
+
+        double startCost = latestSimulation.getCost();
+
         latestSimulation.addTask(task);
         temperature = MAX_TEMP;
 
-        double startCost =latestSimulation.getCost();
-
         long time;
-        double lastCost = startCost;
+        double lastCost = latestSimulation.getCost();
 
         while ((time = System.currentTimeMillis()) < deadline) {
             List<State> neighbours = latestSimulation.chooseNeighbours();
@@ -62,7 +63,7 @@ public class Planner {
             temperature = 1 - ((time - start) / (double) timeout);
         }
 
-        return getMarginal ? start - lastCost :lastCost;
+        return getMarginal ? lastCost - startCost : lastCost;
     }
 
 
@@ -110,7 +111,7 @@ public class Planner {
         public void addTask(Task task) {
             try {
                 Vehicle candidate = firstTasks.keySet().stream().
-                        filter(v -> v.capacity() <= task.weight)
+                        filter(v -> v.capacity() >= task.weight)
                         .min(Comparator.comparingDouble(v -> v.homeCity().distanceTo(task.pickupCity)))
                         .orElseThrow(() -> new Exception("No vehicle can handle the task"));
 
@@ -143,7 +144,7 @@ public class Planner {
                     double costPerKM = vehicle.costPerKm();
                     ConcreteTask current = concreteTask;
 
-                    cost[0] += vehicle.getCurrentCity().distanceTo(current.task.pickupCity) * costPerKM;
+                    cost[0] += vehicle.homeCity().distanceTo(current.task.pickupCity) * costPerKM;
 
                     while (nextTask.get(current) != null) {
                         ConcreteTask next = nextTask.get(current);
@@ -176,13 +177,13 @@ public class Planner {
                     return;
                 }
 
-                Plan plan = new Plan(vehicle.getCurrentCity());
+                Plan plan = new Plan(vehicle.homeCity());
                 ConcreteTask current = firstTasks.get(vehicle);
 
                 if (current != null) {
 
                     // Append moves actions until the first pickup
-                    vehicle.getCurrentCity().pathTo(current.getCity()).forEach(plan::appendMove);
+                    vehicle.homeCity().pathTo(current.getCity()).forEach(plan::appendMove);
 
                     // Append first pickup
                     plan.appendPickup(current.task);
