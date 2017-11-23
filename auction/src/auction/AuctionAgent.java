@@ -19,6 +19,8 @@ public class AuctionAgent implements AuctionBehavior {
 
     private static final int COST_KM = 5;
     private static final double LOSS_THRESHOLD = 0.8;
+    private static final double INTEREST_THRESHOLD= 0.1;
+    private static final double UNDERCUT_RATIO = 0.9;
 
     private Topology topology;
     private TaskDistribution distribution;
@@ -85,14 +87,38 @@ public class AuctionAgent implements AuctionBehavior {
         long ourMarginal = (long) planner.simulateWithNewTask(task, timeout_bid, true);
 
         if (marginalCost >= ourMarginal) {
-            // TODO: adjust
+            return (long) Math.max(ourMarginal, marginalCost * UNDERCUT_RATIO);
         } else if (marginalCost > ourMarginal * LOSS_THRESHOLD) {
-            
+            if (evaluateCity(task.pickupCity) && evaluateCity(task.deliveryCity)) {
+                return (long) (ourMarginal * LOSS_THRESHOLD);
+            } else {
+                return ourMarginal;
+            }
         } else {
             return ourMarginal;
         }
+    }
 
-        return 0L;
+    private boolean evaluateCity(City city) {
+        HashSet<City> visitedCities = new HashSet<>();
+
+        tasks.forEach(t -> {
+            visitedCities.add(t.deliveryCity);
+            visitedCities.add(t.pickupCity);
+        });
+
+        int nCities = topology.cities().size();
+        final double[] pVisitTo = {0};
+        final double[] pVisitFrom = {0};
+
+        visitedCities.forEach(c -> {
+            pVisitFrom[0] += distribution.probability(city, c) /nCities;
+            pVisitTo[0] += distribution.probability(c, city) / nCities;
+        });
+
+        System.out.println(pVisitFrom[0] + pVisitTo[0]);
+
+        return (pVisitFrom[0] + pVisitTo[0]) > INTEREST_THRESHOLD;
     }
 
     @Override
