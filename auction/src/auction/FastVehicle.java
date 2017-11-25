@@ -6,6 +6,7 @@ import logist.topology.Topology;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -46,16 +47,29 @@ public class FastVehicle implements Vehicle {
         // Generate number of new vehicle
         int nVehicles = vehicles.size();
         if (!sameNumber) {
-            nVehicles = random.nextBoolean() ? nVehicles - 1 : nVehicles + 1;
-            nVehicles = Math.max(2, nVehicles);
+            nVehicles = random.nextInt(3) + 3;
         }
+
+        HashSet<Topology.City> used = new HashSet<>();
 
         // Generate vehicles
         for(int i = 0; i < nVehicles; ++i) {
             Vehicle reference = vehicles.get(i % vehicles.size());
 
             int capacity = generateValue(reference.capacity(), sameCapacity, 0.2);
-            Topology.City city = generateHomeCity(topology, reference.homeCity(), cityRandomness);
+
+
+            Topology.City city;
+
+            if (cityRandomness == HomeCityRandomness.FULL) {
+                do {
+                    city = topology.randomCity(random);
+                } while (used.contains(city));
+                used.add(city);
+            } else {
+                city = generateHomeCity(topology, reference.homeCity(), cityRandomness);
+            }
+
             int costPerKm = generateValue(reference.costPerKm(), sameCost, 0.2);
 
             FastVehicle v = new FastVehicle(capacity, city, costPerKm);
@@ -88,6 +102,10 @@ public class FastVehicle implements Vehicle {
         }
 
         return city;
+    }
+
+    public void setHomeCity(Topology.City homeCity) {
+        this.homeCity = homeCity;
     }
 
     @Override

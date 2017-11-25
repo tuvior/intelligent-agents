@@ -31,6 +31,9 @@ public class AuctionAgent implements AuctionBehavior {
     private long timeout_bid;
 
     private Planner planner;
+    private int round = 0;
+
+    private long currentPrediction = 0;
 
     private Adversary adversary;
     private List<Task> tasks;
@@ -61,48 +64,103 @@ public class AuctionAgent implements AuctionBehavior {
         this.random = new Random();
         this.planner = new Planner(agent.vehicles());
 
+        System.out.println("Init Agent " + agent.id());
+        agent.vehicles().forEach(v -> System.out.println(v.name() + " " + v.homeCity()));
+
         // Init adversary
-        List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.NEIGHBOR);
+        List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.FULL);
         this.adversary = new Adversary(advVehicles);
     }
 
     @Override
     public void auctionResult(Task previous, int winner, Long[] bids) {
-        System.out.println("Auction Result: " + previous + " " + winner + " " + Arrays.toString(bids));
+        System.out.println("Auction Result[" + agent.id() + "] : " + previous + " " + winner + " " + Arrays.toString(bids));
         boolean win = winner == agent.id();
+
+        if (round == 0 && agent.id() == 0) {
+            adversary.planner.anchorVehicle(bids[1 - agent.id()], topology);
+        } else if (win && agent.id() == 0 && Math.abs(currentPrediction - bids[1 - agent.id()]) > currentPrediction * 0.25) {
+            adversary.planner.shuffleVehicles(topology);
+        } else if (!win && agent.id() == 0) {
+            double ratio = (bids[agent.id()] - bids[1 - agent.id()])/(double) (bids[agent.id()] - currentPrediction);
+            if (ratio > 0.8 || ratio < 0) {
+                adversary.planner.shuffleVehicles(topology);
+            }
+            System.out.println("undercut ratio:" + ratio);
+        }
+
         if (win) {
             tasks.add(previous);
             payment += bids[agent.id()];
             planner.confirmNewPlan();
+            profit = possibleProfit;
         }
-        
+
+        System.out.println("Current Profit[" + agent.id() + "]: " + profit);
         adversary.auctionResult(previous, bids[1 - agent.id()], !win);
+
+        round++;
     }
+
+    private long profit = 0;
+    private long possibleProfit = 0;
 
     @Override
     public Long askPrice(Task task) {
-        System.out.println("ask price" + task);
-        double newAdvPrice = adversary.planner.simulateWithNewTask(task, 10000, false);
-        long advGain = adversary.payment;
-        long marginalCost = (long) newAdvPrice - advGain;
+        System.out.println("Ask Price[" + agent.id() + "] " + task);
+        long marginalCost;
+//        if (agent.id() == 1) {
+//            marginalCost = (long) adversary.getMinCostForNewTask(task);
+//        } else {
+            double newAdvPrice = adversary.planner.simulateWithNewTask(task, 14000, false);
+            long advGain = adversary.payment;
+            marginalCost = (long) newAdvPrice - advGain;
+//        }
 
-        System.out.println(newAdvPrice);
-
-        long ourMarginal = (long) planner.simulateWithNewTask(task, 10000, true);
-
-        System.out.println(ourMarginal);
-
-        if (marginalCost >= ourMarginal) {
-            return (long) Math.max(ourMarginal, marginalCost * UNDERCUT_RATIO);
-        } else if (marginalCost > ourMarginal * LOSS_THRESHOLD) {
-            if (evaluateCity(task.pickupCity) && evaluateCity(task.deliveryCity)) {
-                return (long) (ourMarginal * LOSS_THRESHOLD);
-            } else {
-                return ourMarginal;
-            }
-        } else {
-            return ourMarginal;
+        if (marginalCost < 0) {
+            marginalCost = (long) newAdvPrice - (long) adversary.planner.getLastConfirmedCost();
         }
+
+        long futureCost =  (long) planner.simulateWithNewTask(task, 14000, false);
+        long ourMarginal = futureCost - (long) planner.getLastConfirmedCost();
+
+        long bid = Math.max(0, ourMarginal);
+
+
+        System.out.println("sim: " + marginalCost + " our: " + ourMarginal);
+
+        if (marginalCost >= bid) {
+            bid = (long) Math.max(bid + ((marginalCost - bid) * 0.5), Math.min(bid / UNDERCUT_RATIO, marginalCost * UNDERCUT_RATIO));
+            if (bid < ourMarginal) {
+                bid = ourMarginal;
+            }
+            System.out.print("1 -> ");
+        } else if (marginalCost > bid * LOSS_THRESHOLD) {
+            if (evaluateCity(task.pickupCity) && evaluateCity(task.deliveryCity)) {
+                bid = (long) Math.max(0, bid * LOSS_THRESHOLD);
+                System.out.print("2 -> ");
+            } else {
+                System.out.print("3 -> ");
+            }
+        } else if (bid - marginalCost < profit * 0.25 && profit >= adversary.profit){
+            bid = bid - marginalCost - 1;
+            System.out.print("4 -> ");
+        } else {
+            System.out.print("5 -> ");
+        }
+
+        System.out.println(bid);
+
+        possibleProfit = (payment + bid) - futureCost;
+        currentPrediction = marginalCost;
+
+        if (agent.id() == 1) {
+            System.out.println("==================================================================");
+            System.out.println("Round " + (round + 1));
+            System.out.println("==================================================================");
+        }
+
+        return bid;
     }
 
     private boolean evaluateCity(City city) {
@@ -173,6 +231,7 @@ public class AuctionAgent implements AuctionBehavior {
         public HashMap<Task, Long> bids;
         public Planner planner;
         public long payment;
+        public long profit;
 
         public Adversary(List<? extends Vehicle> vehicles) {
             this.vehicles = vehicles;
@@ -188,6 +247,7 @@ public class AuctionAgent implements AuctionBehavior {
                 tasks.add(task);
                 planner.confirmNewPlan();
             }
+            profit = (long) planner.getLastConfirmedCost() - payment;
             bids.put(task, bid);
         }
 

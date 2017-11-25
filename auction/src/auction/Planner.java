@@ -16,6 +16,7 @@ public class Planner {
     private State latestSimulation;
     private Random random;
     private double temperature;
+    private Vehicle anchor;
 
     public Planner(List<? extends Vehicle> vehicles) {
         temperature = MAX_TEMP;
@@ -30,6 +31,122 @@ public class Planner {
     public void confirmNewPlan() {
         latestState = latestSimulation;
         latestSimulation = null;
+    }
+
+    public void shuffleVehicles(Topology topology) {
+        HashSet<Topology.City> used = new HashSet<>();
+        latestSimulation.firstTasks.forEach((vehicle, ctask) -> used.add(vehicle.homeCity()));
+
+        try {
+            if (latestSimulation.firstTasks.get(anchor) == null) {
+                anchor = latestSimulation
+                        .firstTasks.entrySet().stream()
+                        .filter(e -> e.getValue() != null)
+                        .findFirst()
+                        .orElseThrow(() -> new Exception("Called at wrong step")).getKey();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        Task first = latestSimulation.firstTasks.get(anchor).task;
+        double pCost = anchor.homeCity().distanceTo(first.pickupCity) * anchor.costPerKm();
+
+        int iterLimit = topology.cities().size() * 10;
+
+        latestSimulation.firstTasks.forEach((vehicle, ctask) -> {
+            if (vehicle == anchor) return;
+
+            double pickCost = vehicle.homeCity().distanceTo(first.pickupCity) * vehicle.costPerKm();
+
+            if (pickCost < pCost) {
+                Topology.City newHome;
+                used.remove(vehicle.homeCity());
+                int iter = 0;
+                do {
+                    if (iter > iterLimit) {
+                        used.add(vehicle.homeCity());
+                        return;
+                    }
+                    newHome = topology.randomCity(random);
+                    iter++;
+                } while (used.contains(newHome) || newHome.distanceTo(first.pickupCity) * vehicle.costPerKm() < pCost);
+                ((FastVehicle) vehicle).setHomeCity(newHome);
+                used.add(newHome);
+            }
+        });
+
+
+    }
+
+    public void anchorVehicle(Long cost, Topology topology) {
+        try {
+            FastVehicle toAnchor = (FastVehicle) latestSimulation
+                    .firstTasks.entrySet().stream()
+                    .filter(e -> e.getValue() != null)
+                    .findFirst()
+                    .orElseThrow(() -> new Exception("Called at wrong step")).getKey();
+            Task task = latestSimulation.firstTasks.get(toAnchor).task;
+
+            double fixedCost = task.pickupCity.distanceTo(task.deliveryCity) * toAnchor.costPerKm();
+
+            Topology.City current = null;
+            double minDiff = Double.POSITIVE_INFINITY;
+            double currentCost = 0;
+
+            for (Topology.City c : topology.cities()) {
+                double pCost = c.distanceTo(task.pickupCity) * toAnchor.costPerKm();
+
+                if (Math.abs(cost - (pCost + fixedCost)) < minDiff) {
+                    minDiff = Math.abs(cost - (pCost + fixedCost));
+                    current = c;
+                    currentCost = pCost;
+                }
+            }
+
+
+            toAnchor.setHomeCity(current);
+            anchor = toAnchor;
+
+
+            final double concreteCost = currentCost;
+            HashSet<Topology.City> used = new HashSet<>();
+            ArrayList<Vehicle> toRemove = new ArrayList<>();
+            latestSimulation.firstTasks.forEach((vehicle, ctask) -> used.add(vehicle.homeCity()));
+
+            int iterLimit = topology.cities().size() * 10;
+
+            latestSimulation.firstTasks.forEach((vehicle, ctask) -> {
+                if (vehicle == anchor) return;
+
+                double pickCost = vehicle.homeCity().distanceTo(task.pickupCity) * vehicle.costPerKm();
+
+                if (pickCost < concreteCost) {
+                    Topology.City newHome;
+                    used.remove(vehicle.homeCity());
+                    int iter = 0;
+                    do {
+                        if (iter > iterLimit) {
+                            toRemove.add(vehicle);
+                            return;
+                        }
+                        newHome = topology.randomCity(random);
+                        iter++;
+                    } while (used.contains(newHome) || newHome.distanceTo(task.pickupCity) * vehicle.costPerKm() < concreteCost);
+                    ((FastVehicle) vehicle).setHomeCity(newHome);
+                    used.add(newHome);
+                }
+            });
+
+            toRemove.forEach(v -> {
+                System.out.println("removing " + v.name());
+                latestState.firstTasks.remove(v);
+                latestSimulation.firstTasks.remove(v);
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public List<Plan> getFinalPlan(List<Vehicle> vehicles) {
