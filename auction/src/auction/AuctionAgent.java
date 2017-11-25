@@ -143,7 +143,7 @@ public class AuctionAgent implements AuctionBehavior {
                 System.out.print("3 -> ");
             }
         } else if (bid - marginalCost < profit * 0.25 && profit >= adversary.profit){
-            bid = bid - marginalCost - 1;
+            bid = marginalCost - 1;
             System.out.print("4 -> ");
         } else {
             System.out.print("5 -> ");
