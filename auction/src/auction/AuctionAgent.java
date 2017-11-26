@@ -39,10 +39,6 @@ public class AuctionAgent implements AuctionBehavior {
     private List<Task> tasks;
     private long payment;
 
-    /**
-     * ASSUMPTIONS:
-     * - always 2 agents
-     */
 
     @Override
     public void setup(Topology topology, TaskDistribution distribution, Agent agent) {
@@ -67,9 +63,7 @@ public class AuctionAgent implements AuctionBehavior {
         System.out.println("Init Agent " + agent.id());
         agent.vehicles().forEach(v -> System.out.println(v.name() + " " + v.homeCity()));
 
-        // Init adversary
-        List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.FULL);
-        this.adversary = new Adversary(advVehicles);
+       this.adversary = new Adversary();
     }
 
     @Override
@@ -77,92 +71,87 @@ public class AuctionAgent implements AuctionBehavior {
         System.out.println("Auction Result[" + agent.id() + "] : " + previous + " " + winner + " " + Arrays.toString(bids));
         boolean win = winner == agent.id();
 
-        if (round == 0 && agent.id() == 0) {
-            adversary.planner.anchorVehicle(bids[1 - agent.id()], topology);
-        } else if (win && agent.id() == 0 && Math.abs(currentPrediction - bids[1 - agent.id()]) > currentPrediction * 0.25) {
-            adversary.planner.shuffleVehicles(topology);
-        } else if (!win && agent.id() == 0) {
-            double ratio = (bids[agent.id()] - bids[1 - agent.id()])/(double) (bids[agent.id()] - currentPrediction);
-            if (ratio > 0.8 || ratio < 0) {
-                adversary.planner.shuffleVehicles(topology);
-            }
-            System.out.println("undercut ratio:" + ratio);
+        if (round == 0) {
+            // anchor vehicle in both plans
+            adversary.planner1.anchorVehicle(bids[1 - agent.id()], topology);
+            adversary.planner2.anchorVehicle(bids[1 - agent.id()], topology);
         }
+
+        // check if shuffling is required
+        adversary.shuffleIfNeeded(win, bids[agent.id()], bids[1 - agent.id()]);
 
         if (win) {
             tasks.add(previous);
             payment += bids[agent.id()];
             planner.confirmNewPlan();
-            profit = possibleProfit;
         }
 
-        System.out.println("Current Profit[" + agent.id() + "]: " + profit);
+        System.out.println("Current Profit[" + agent.id() + "]: " + (payment - planner.lastConfirmedCost));
+        profit = (long) (payment - planner.lastConfirmedCost);
         adversary.auctionResult(previous, bids[1 - agent.id()], !win);
 
         round++;
     }
 
     private long profit = 0;
-    private long possibleProfit = 0;
 
     @Override
     public Long askPrice(Task task) {
         System.out.println("Ask Price[" + agent.id() + "] " + task);
-        long marginalCost;
-//        if (agent.id() == 1) {
-//            marginalCost = (long) adversary.getMinCostForNewTask(task);
-//        } else {
-            double newAdvPrice = adversary.planner.simulateWithNewTask(task, 14000, false);
-            long advGain = adversary.payment;
-            marginalCost = (long) newAdvPrice - advGain;
-//        }
+        long time = timeout_bid - 100;
+        long  marginalCost = adversary.getNewMarginal(task, time / 2);
 
-        if (marginalCost < 0) {
-            marginalCost = (long) newAdvPrice - (long) adversary.planner.getLastConfirmedCost();
-        }
-
-        long futureCost =  (long) planner.simulateWithNewTask(task, 14000, false);
-        long ourMarginal = futureCost - (long) planner.getLastConfirmedCost();
+        long futureCost =  (long) planner.simulateWithNewTask(task, time / 2, false);
+        long ourMarginal = futureCost - (long) planner.lastConfirmedCost;
 
         long bid = Math.max(0, ourMarginal);
 
+        // don't bother with simulation on first task
+        if (round == 0) {
+            double ratio = 1.03 + random.nextDouble() * 0.1;
+            bid *= ratio;
+            currentPrediction = marginalCost;
+            return bid;
+        }
 
-        System.out.println("sim: " + marginalCost + " our: " + ourMarginal);
+        // adjust marginalCost with calculated ratio if within bounds
+        if (marginalCost < bid && marginalCost * adversary.averageRatio < bid) {
+            marginalCost = (long) (marginalCost * adversary.averageRatio);
+        }
+
+        System.out.println("Adversary Marginal: " + marginalCost + " Agent Marginal: " + ourMarginal);
 
         if (marginalCost >= bid) {
             bid = (long) Math.max(bid + ((marginalCost - bid) * 0.5), Math.min(bid / UNDERCUT_RATIO, marginalCost * UNDERCUT_RATIO));
             if (bid < ourMarginal) {
                 bid = ourMarginal;
             }
-            System.out.print("1 -> ");
+            System.out.print("1 -> "); // undercut adversary
         } else if (marginalCost > bid * LOSS_THRESHOLD) {
             if (evaluateCity(task.pickupCity) && evaluateCity(task.deliveryCity)) {
                 bid = (long) Math.max(0, bid * LOSS_THRESHOLD);
-                System.out.print("2 -> ");
+                System.out.print("2 -> "); // undercut by going in red if good cities
             } else {
-                System.out.print("3 -> ");
+                System.out.print("3 -> "); // fallback to 0 profit
             }
         } else if (bid - marginalCost < profit * 0.25 && profit >= adversary.profit){
             bid = marginalCost - 1;
-            System.out.print("4 -> ");
+            System.out.print("4 -> "); // fallback to -1 undercut if not major loss
         } else {
-            System.out.print("5 -> ");
+            System.out.print("5 -> "); // fallback to 0 profit
         }
-
         System.out.println(bid);
 
-        possibleProfit = (payment + bid) - futureCost;
         currentPrediction = marginalCost;
-
-        if (agent.id() == 1) {
-            System.out.println("==================================================================");
-            System.out.println("Round " + (round + 1));
-            System.out.println("==================================================================");
-        }
 
         return bid;
     }
 
+
+    /**
+     * @param city the city to be evaluated
+     * @return probability that a future task will interest this city and a city visited by the agent
+     */
     private boolean evaluateCity(City city) {
         HashSet<City> visitedCities = new HashSet<>();
 
@@ -176,8 +165,8 @@ public class AuctionAgent implements AuctionBehavior {
         final double[] pVisitFrom = {0};
 
         visitedCities.forEach(c -> {
-            pVisitFrom[0] += distribution.probability(city, c) /nCities;
-            pVisitTo[0] += distribution.probability(c, city) / nCities;
+            pVisitFrom[0] += distribution.probability(city, c) / (double) nCities;
+            pVisitTo[0] += distribution.probability(c, city) / (double) nCities;
         });
 
         System.out.println(pVisitFrom[0] + pVisitTo[0]);
@@ -187,71 +176,109 @@ public class AuctionAgent implements AuctionBehavior {
 
     @Override
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
-        // TODO: stochastic local search again
-        return null;
-    }
-
-    /**
-     * The method generates an optimal plan with all assigned tasks and addition of newTask
-     * The current total payment received by the agent is then compared against the cost of this new optimal plan,
-     * the difference between the two gives a lower bound in terms of bid required to generate profit if the auction
-     * was won.
-     *
-     * @param newTask auctioned task to be evaluated
-     * @return the minimum bid to be even in terms of revenue
-     */
-    private long planCostRequirement(Task newTask) {
-        // TODO: stochastic local search I guess, then (plan cost - payment) is the result
-        return 0;
-    }
-
-    /**
-     * TODO: figure out if we can find something meaningful to optimise undercutting prices without losses
-     *
-     * @param topology     the topology for this simulation
-     * @param distribution the task distribution for this simulation
-     */
-    private void evaluateTopology(Topology topology, TaskDistribution distribution) {
-        topology.cities().forEach(city -> {
-            final double[] totalProb1 = {0};
-            final double[] totalProb2 = {0};
-            topology.cities().forEach(city2 -> {
-                totalProb1[0] += distribution.probability(city, city2);
-                totalProb2[0] += distribution.probability(city2, city);
-            });
-        });
+        return planner.getFinalPlan(vehicles, timeout_plan);
     }
 
     /**
      * class to represent everything related to the adversary
      */
     public class Adversary {
-        public List<? extends Vehicle> vehicles;
         public List<Task> tasks;
         public HashMap<Task, Long> bids;
-        public Planner planner;
+        public Planner planner1;
+        public Planner planner2;
         public long payment;
         public long profit;
+        public double averageRatio;
 
-        public Adversary(List<? extends Vehicle> vehicles) {
-            this.vehicles = vehicles;
+        public Adversary() {
+            // Init adversary with 2 configurations
+            List<FastVehicle> advVehicles = FastVehicle.generateVehicles(agent.vehicles(), topology, false, false, true, FastVehicle.HomeCityRandomness.FULL);
+            List<FastVehicle> advVehicles2 = FastVehicle.generateVehicles(agent.vehicles(), topology, true, true, true, FastVehicle.HomeCityRandomness.FULL);
+
             tasks = new ArrayList<>();
             bids = new HashMap<>();
-            planner = new Planner(vehicles);
+            planner1 = new Planner(advVehicles);
+            planner2 = new Planner(advVehicles2);
             payment = 0;
+            averageRatio = 1;
         }
 
+        /**
+         * Updates all required data for next round
+         *
+         * @param task the task from this auction round
+         * @param bid the adversary bid
+         * @param winner whether the adversary won or not
+         */
         public void auctionResult(Task task, long bid, boolean winner) {
             if (winner) {
                 payment += bid;
                 tasks.add(task);
-                planner.confirmNewPlan();
+                planner1.confirmNewPlan();
+                planner2.confirmNewPlan();
+                double ratio = bid / (double) currentPrediction;
+                if (ratio > 0.9 && ratio < 1.5) {
+                    averageRatio = (averageRatio + 2.0 * ratio ) / 3.0;
+                }
             }
-            profit = (long) planner.getLastConfirmedCost() - payment;
+            profit = (long) planner.lastConfirmedCost - payment;
             bids.put(task, bid);
         }
 
+
         /**
+         * Evaluates whether a vehicle reshuffle is needed in either of the plans
+         *
+         * @param agentWin if the agent won
+         * @param bid1 agent bid
+         * @param bid2 adversary bid
+         */
+        public void shuffleIfNeeded(boolean agentWin, long bid1, long bid2 ){
+            if (agentWin && Math.abs(currentPrediction - bid2) >  bid2 * 0.25) {
+                if (Math.abs(planner1.lastSimulatedCost - bid2) >  bid2 * 0.33) {
+                    planner1.shuffleVehicles(topology);
+                }
+                if (Math.abs(planner2.lastSimulatedCost - bid2) >  bid2 * 0.33) {
+                    planner2.shuffleVehicles(topology);
+                }
+            } else if (!agentWin) {
+                double ratio = (bid1 - bid2)/(double) (bid1 - currentPrediction);
+                if (ratio < 0.8 || ratio > 1.3) {
+                    if (bid2 / planner1.lastConfirmedCost < 0.8 || bid2 / planner1.lastConfirmedCost > 1.3) {
+                        planner1.shuffleVehicles(topology);
+                    }
+
+                    if (bid2 / planner2.lastConfirmedCost < 0.8 || bid2 / planner2.lastConfirmedCost > 1.3) {
+                        planner2.shuffleVehicles(topology);
+                    }
+                }
+            }
+        }
+
+        /**
+         * @param task task to be added
+         * @param timeout timeout for the simulation
+         * @return average marginal cost of the two plans
+         */
+        public long getNewMarginal(Task task, long timeout) {
+            return (long) simulateWithNewTask(task, timeout, true);
+        }
+
+        private double simulateWithNewTask(Task task, long timeout, boolean getMarginal) {
+            long separateTimout = timeout / 2;
+
+            double val1 = planner1.simulateWithNewTask(task, separateTimout, getMarginal);
+            double val2 = planner2.simulateWithNewTask(task, separateTimout, getMarginal);
+
+            System.out.println(val1 + " " +  val2 + " " + payment);
+
+            return (val1 + val2) / 2.0;
+        }
+
+        /**
+         * (WAS ONLY USED AS NAIVE ALTERNATIVE IN TESTING)
+         *
          * The method tries to estimate the best case scenario for the adversary adding this task to their plan
          * it picks a city that already needs to be visited as bridge for the pickup and then assumes no
          * direct delivery will be performed. Without reusing the bridge city (as it would imply backtracking)
@@ -306,7 +333,7 @@ public class AuctionAgent implements AuctionBehavior {
         }
 
         private double averageDistance(City city) {
-            return topology.cities().stream().mapToDouble(city::distanceTo).sum() / topology.cities().size();
+            return topology.cities().stream().mapToDouble(city::distanceTo).sum() / (double) topology.cities().size();
         }
     }
 }

@@ -12,6 +12,10 @@ public class Planner {
     private static final int MAX_TEMP = 1;
     private static final double CHOICE_THRESHOLD = 0.4;
 
+
+    public double lastSimulatedCost;
+    public double lastConfirmedCost;
+
     private State latestState;
     private State latestSimulation;
     private Random random;
@@ -22,63 +26,47 @@ public class Planner {
         temperature = MAX_TEMP;
         latestState = new State(vehicles);
         random = new Random();
+        lastConfirmedCost = 0;
+        lastSimulatedCost = 0;
     }
 
-    public double getLastConfirmedCost() {
-        return latestState.getCost();
-    }
-
+    /**
+     * Confirms the previous round as effective
+     */
     public void confirmNewPlan() {
         latestState = latestSimulation;
+        lastConfirmedCost = lastSimulatedCost;
         latestSimulation = null;
     }
 
+    /**
+     * Shuffles the home city of all vehicles
+     *
+     * @param topology the simulation's topology
+     */
     public void shuffleVehicles(Topology topology) {
         HashSet<Topology.City> used = new HashSet<>();
         latestSimulation.firstTasks.forEach((vehicle, ctask) -> used.add(vehicle.homeCity()));
 
-        try {
-            if (latestSimulation.firstTasks.get(anchor) == null) {
-                anchor = latestSimulation
-                        .firstTasks.entrySet().stream()
-                        .filter(e -> e.getValue() != null)
-                        .findFirst()
-                        .orElseThrow(() -> new Exception("Called at wrong step")).getKey();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        Task first = latestSimulation.firstTasks.get(anchor).task;
-        double pCost = anchor.homeCity().distanceTo(first.pickupCity) * anchor.costPerKm();
-
-        int iterLimit = topology.cities().size() * 10;
-
         latestSimulation.firstTasks.forEach((vehicle, ctask) -> {
-            if (vehicle == anchor) return;
-
-            double pickCost = vehicle.homeCity().distanceTo(first.pickupCity) * vehicle.costPerKm();
-
-            if (pickCost < pCost) {
                 Topology.City newHome;
                 used.remove(vehicle.homeCity());
-                int iter = 0;
                 do {
-                    if (iter > iterLimit) {
-                        used.add(vehicle.homeCity());
-                        return;
-                    }
                     newHome = topology.randomCity(random);
-                    iter++;
-                } while (used.contains(newHome) || newHome.distanceTo(first.pickupCity) * vehicle.costPerKm() < pCost);
+                } while (used.contains(newHome));
                 ((FastVehicle) vehicle).setHomeCity(newHome);
                 used.add(newHome);
-            }
         });
-
-
     }
 
+    /**
+     * Tries to place the vehicle carrying the first task to make the cost as close as possible to cost.
+     * Afterwards tries to place all other vehicles to make them more "costly" in relation to the task,
+     * when this is not possible the vehicle is considered excess and removed from the simulation
+     *
+     * @param cost the aimed cost
+     * @param topology the simulatoin's topology
+     */
     public void anchorVehicle(Long cost, Topology topology) {
         try {
             FastVehicle toAnchor = (FastVehicle) latestSimulation
@@ -139,7 +127,6 @@ public class Planner {
             });
 
             toRemove.forEach(v -> {
-                System.out.println("removing " + v.name());
                 latestState.firstTasks.remove(v);
                 latestSimulation.firstTasks.remove(v);
             });
@@ -149,10 +136,49 @@ public class Planner {
         }
     }
 
-    public List<Plan> getFinalPlan(List<Vehicle> vehicles) {
-        return latestState.getPlans(vehicles);
+    /**
+     * @param vehicles vehicle list, used for ordering
+     * @param timeout time in which the action must be performed
+     * @return plans for all of the agent's vehicles
+     */
+    public List<Plan> getFinalPlan(List<Vehicle> vehicles, long timeout) {
+        long start = System.currentTimeMillis();
+        long deadline = start + timeout;
+        latestSimulation = latestState.clone();
+
+        temperature = MAX_TEMP;
+
+        long time;
+        double lastCost = latestSimulation.getCost();
+
+        while ((time = System.currentTimeMillis()) < deadline) {
+            List<State> neighbours = latestSimulation.chooseNeighbours();
+            State candidate = localChoice(neighbours);
+
+            double cost = candidate.getCost();
+
+            if (cost < lastCost || random.nextDouble() <= temperature) {
+                latestSimulation = candidate;
+                lastCost = cost;
+            }
+
+            temperature = 1 - ((time - start) / (double) timeout);
+        }
+
+        lastSimulatedCost = lastCost;
+
+
+        return latestSimulation.getPlans(vehicles);
     }
 
+    /**
+     * Adds the task to the nearest vehicle and starts updating the state until timeout, then returns the cost
+     *
+     * @param task task to be analysed
+     * @param timeout time bound
+     * @param getMarginal if the returned value is marginal cost or the absolute cost
+     * @return marginal cost or absolute cost
+     */
     public double simulateWithNewTask(Task task, long timeout, boolean getMarginal) {
         long start = System.currentTimeMillis();
         long deadline = start + timeout;
@@ -179,6 +205,8 @@ public class Planner {
 
             temperature = 1 - ((time - start) / (double) timeout);
         }
+
+        lastSimulatedCost = lastCost;
 
         return getMarginal ? lastCost - startCost : lastCost;
     }

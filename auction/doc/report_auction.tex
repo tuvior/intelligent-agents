@@ -23,13 +23,13 @@ In this section, we first describe how plan optimization is performed, before di
 \subsection{Plan optimization}
 The \textit{Planner} class is responsible to construct and optimize a plan for a given list of vehicles and tasks.
 
-We use the constraints solving algorithm with stochastic local search developped in the last assignment to perform the optimization. Similarly, at each iteration, we generate neighboring states by swapping tasks for a random vehicles, or assigning a task to a new vehicle, making sure constraints stay solved.
+We use the constraints solving algorithm with stochastic local search developed in the last assignment to perform the optimization. Similarly, at each iteration, we generate neighbouring states by swapping tasks for a random vehicles, or assigning a task to a new vehicle, making sure constraints stay solved.
 
-However, we improved the algorithm by using the simulated annealing technique, meaning that we let the possibility to randomly jump to a generated neighbor, even if it is not the one minimizing the objective function. The probability of random jump decreases over time. The goal is to reduce chances of getting stuck in a local minima.
+However, we improved the algorithm by using the simulated annealing technique, meaning that we let the possibility to randomly jump to a generated neighbour, even if it is not the one minimizing the objective function. The probability of random jump decreases over time. The goal is to reduce chances of getting stuck in a local minima.
 
 When adding new tasks to the plans when bids get accepted, we do not recover the initial configuration, but restart optimization from the last computed state, since we can hope that the new plan do not deviate too much from the last one.
 
-One should also note that we optimize plans under timeout constraints.
+One should also note that we optimize plans under time-out constraints.
 
 
 \subsection{Adversary}
@@ -39,16 +39,21 @@ The main challenge turns out to be finding the best initial configuration, since
 
 The initial configuration is mainly random in term of position (this is further discussed in the experiment section), but similar in term of vehicle number and capacity, since we add a bit of randomness in order to deviate a little, but stay conservative to keep fairness. However, after the first bid result, we adapt the configuration in order to place the first vehicle such that the generated cost fits the adversary marginal cost at best, which we call \textit{vehicle anchoring}. Other vehicles are randomly placed far enough in order to not pick the first task. During the following rounds, if the prediction we make is not similar enough to the adversary's bid, we shuffle vehicles again to be able to imitate other's configuration. This allows to not be stuck with a configuration which is clearly not adapted to the current situation, and guess adversary's moves in a better way.
 
+As additional improvement on top of this we decided to maintain 2 separate instances of \textit{Planner} for the adversary and use the average of the simulations between he two as result.
 
-\subsection{Biding}
+
+\subsection{Bidding}
 Our final biding strategy uses the following elements to make the ultimate choice:
 \begin{itemize}
 	\item Our agent's optimal plan with the new task
 	\item Other's agent simulated optimal plan with the new task
 	\item Tasks probability distribution
+	\item Weighted average of the adversary's tendency to undercut / overcut
 \end{itemize}
 
-First, we compute the minimum marginal cost implied by accepting the task for both of the agents, by optimizing the plan with the new task, and sharing computing times to optimize as long as possible within the imposed timeout. It is important to note that at this step, the tricks to guess adversary's optimal plan are already applied, since optimizing its plan is using the dynamic best initial configuration.
+First, we compute the minimum marginal cost implied by accepting the task for both of the agents, by optimizing the plan with the new task, and sharing computing times to optimize as long as possible within the imposed time-out. It is important to note that at this step, the tricks to guess adversary's optimal plan are already applied, since optimizing its plan is using the dynamic best initial configuration.
+
+In the case where our simulation for the adversary gives a smaller marginal cost than ours we try to apply their average ration to their marginal cost.
 
 We then compare the two marginal cost and separate in different cases:
 \begin{itemize}
@@ -58,7 +63,7 @@ We then compare the two marginal cost and separate in different cases:
 	\item Otherwise, we simply bit our marginal cost, and hope for the best.
 \end{itemize}
 
-Note that in this description, the concepts of \textit{undercuting}, \textit{close enough}... are tweaked with thresholds.
+Note that in this description, the concepts of \textit{undercutting}, \textit{close enough}... are tweaked with thresholds.
 
 
 \section{Results}
@@ -72,7 +77,7 @@ We use two custom agents, on England topology, with five vehicles and uniform ta
 
 Then we try different initial configuration:
 \begin{itemize}
-	\item Place vehicles to neighboring cities of our own vehicles
+	\item Place vehicles to neighbouring cities of our own vehicles
 	\item Place vehicles randomly
 	\item Adapt dynamically configuration
 \end{itemize}
@@ -90,15 +95,19 @@ We conclude that even though the configuration of the adversary is unknown at fi
 
 \subsection{Experiment 2: Comparisons with dummy agents}
 % in this experiment you observe how the results depends on the number of tasks auctioned. You compare with some dummy agents and potentially several versions of your agent (with different internal parameter values).
-In this expirement we compare our custom smart agent with a naive and dummy agent and analize results.
+The final agent was compared with various previous iterations of the agent (i.e., without anchoring the first vehicle, without shuffling, etc) and also with a naive agent, estimating marginal cost just by bridging pickup and delivery of the new task with the previously picked up tasks (which is still surprisingly somewhat effective).
 
 \subsubsection{Setting}
 % you describe how you perform the experiment, the environment and description of the agents you compare with
-We use the England topology, with five vehicles and unform task distribution.
+We use the England topology, with uniform task distribution and various company formations, mostly 2 vs 3, 4 vs 4 and other variations of the asymmetric configurations.
 
 \subsubsection{Observations}
 % you describe the experimental results and the conclusions you inferred from these results
-TODO
+A couple observation emerged from these experiments. In general it appears that our final version of the agent seems to do well against previous iteration and the naive agent. \\
+Another interesting thing is how an agent is able to "snowball" once it starts building up profit by having a bigger margin for loss.
 
+As someone would expect the predictions made against the adversary become more accurate and effective as the amount of tasks grows, when dealing with a low number of tasks this become more a game of chance and less a competition of algorithms.
+
+A point we feel the need to make is, from extensive testing with endless amount of configurations, it came out that it is really easy for a configuration to be unfair, meaning that one company will have effectively no chance of making profit because any auctioned task will result cheaper to transport for the adversary. In the experiments it showed that in these scenarios there is not much that can be done by the agent to try and stay in the game.
 
 \end{document}
