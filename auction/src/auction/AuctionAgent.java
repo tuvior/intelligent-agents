@@ -75,10 +75,11 @@ public class AuctionAgent implements AuctionBehavior {
             // anchor vehicle in both plans
             adversary.planner1.anchorVehicle(bids[1 - agent.id()], topology);
             adversary.planner2.anchorVehicle(bids[1 - agent.id()], topology);
+        } else {
+            // check if shuffling is required
+            adversary.shuffleIfNeeded(win, bids[agent.id()], bids[1 - agent.id()]);
         }
 
-        // check if shuffling is required
-        adversary.shuffleIfNeeded(win, bids[agent.id()], bids[1 - agent.id()]);
 
         if (win) {
             tasks.add(previous);
@@ -98,7 +99,7 @@ public class AuctionAgent implements AuctionBehavior {
     @Override
     public Long askPrice(Task task) {
         System.out.println("Ask Price[" + agent.id() + "] " + task);
-        long time = timeout_bid - 100;
+        long time = timeout_bid - 2000;
         long  marginalCost = adversary.getNewMarginal(task, time / 2);
 
         long futureCost =  (long) planner.simulateWithNewTask(task, time / 2, false);
@@ -176,7 +177,7 @@ public class AuctionAgent implements AuctionBehavior {
 
     @Override
     public List<Plan> plan(List<Vehicle> vehicles, TaskSet tasks) {
-        return planner.getFinalPlan(vehicles, timeout_plan);
+        return planner.getFinalPlan(vehicles, tasks, timeout_plan - 1000);
     }
 
     /**

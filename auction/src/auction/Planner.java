@@ -3,6 +3,7 @@ package auction;
 import logist.plan.Plan;
 import logist.simulation.Vehicle;
 import logist.task.Task;
+import logist.task.TaskSet;
 import logist.topology.Topology;
 
 import java.util.*;
@@ -21,6 +22,7 @@ public class Planner {
     private Random random;
     private double temperature;
     private Vehicle anchor;
+    private int taskCount;
 
     public Planner(List<? extends Vehicle> vehicles) {
         temperature = MAX_TEMP;
@@ -28,6 +30,7 @@ public class Planner {
         random = new Random();
         lastConfirmedCost = 0;
         lastSimulatedCost = 0;
+        taskCount = 0;
     }
 
     /**
@@ -37,6 +40,7 @@ public class Planner {
         latestState = latestSimulation;
         lastConfirmedCost = lastSimulatedCost;
         latestSimulation = null;
+        taskCount++;
     }
 
     /**
@@ -49,13 +53,13 @@ public class Planner {
         latestSimulation.firstTasks.forEach((vehicle, ctask) -> used.add(vehicle.homeCity()));
 
         latestSimulation.firstTasks.forEach((vehicle, ctask) -> {
-                Topology.City newHome;
-                used.remove(vehicle.homeCity());
-                do {
-                    newHome = topology.randomCity(random);
-                } while (used.contains(newHome));
-                ((FastVehicle) vehicle).setHomeCity(newHome);
-                used.add(newHome);
+            Topology.City newHome;
+            used.remove(vehicle.homeCity());
+            do {
+                newHome = topology.randomCity(random);
+            } while (used.contains(newHome));
+            ((FastVehicle) vehicle).setHomeCity(newHome);
+            used.add(newHome);
         });
     }
 
@@ -64,7 +68,7 @@ public class Planner {
      * Afterwards tries to place all other vehicles to make them more "costly" in relation to the task,
      * when this is not possible the vehicle is considered excess and removed from the simulation
      *
-     * @param cost the aimed cost
+     * @param cost     the aimed cost
      * @param topology the simulatoin's topology
      */
     public void anchorVehicle(Long cost, Topology topology) {
@@ -120,7 +124,8 @@ public class Planner {
                         }
                         newHome = topology.randomCity(random);
                         iter++;
-                    } while (used.contains(newHome) || newHome.distanceTo(task.pickupCity) * vehicle.costPerKm() < concreteCost);
+                    }
+                    while (used.contains(newHome) || newHome.distanceTo(task.pickupCity) * vehicle.costPerKm() < concreteCost);
                     ((FastVehicle) vehicle).setHomeCity(newHome);
                     used.add(newHome);
                 }
@@ -138,44 +143,47 @@ public class Planner {
 
     /**
      * @param vehicles vehicle list, used for ordering
-     * @param timeout time in which the action must be performed
+     * @param timeout  time in which the action must be performed
      * @return plans for all of the agent's vehicles
      */
-    public List<Plan> getFinalPlan(List<Vehicle> vehicles, long timeout) {
+    public List<Plan> getFinalPlan(List<Vehicle> vehicles, TaskSet tasks, long timeout) {
         long start = System.currentTimeMillis();
-        long deadline = start + timeout;
+        long deadline = start + timeout - 1000;
         latestSimulation = latestState.clone();
 
         temperature = MAX_TEMP;
 
-        long time;
-        double lastCost = latestSimulation.getCost();
+        if (taskCount > 0) {
 
-        while ((time = System.currentTimeMillis()) < deadline) {
-            List<State> neighbours = latestSimulation.chooseNeighbours();
-            State candidate = localChoice(neighbours);
+            long time;
+            double lastCost = latestSimulation.getCost();
 
-            double cost = candidate.getCost();
+            while ((time = System.currentTimeMillis()) < deadline) {
+                List<State> neighbours = latestSimulation.chooseNeighbours();
+                State candidate = localChoice(neighbours);
 
-            if (cost < lastCost || random.nextDouble() <= temperature) {
-                latestSimulation = candidate;
-                lastCost = cost;
+                double cost = candidate.getCost();
+
+                if (cost < lastCost || random.nextDouble() <= temperature) {
+                    latestSimulation = candidate;
+                    lastCost = cost;
+                }
+
+                temperature = 1 - ((time - start) / (double) timeout);
             }
 
-            temperature = 1 - ((time - start) / (double) timeout);
+            lastSimulatedCost = lastCost;
         }
 
-        lastSimulatedCost = lastCost;
 
-
-        return latestSimulation.getPlans(vehicles);
+        return latestSimulation.getPlans(vehicles, tasks);
     }
 
     /**
      * Adds the task to the nearest vehicle and starts updating the state until timeout, then returns the cost
      *
-     * @param task task to be analysed
-     * @param timeout time bound
+     * @param task        task to be analysed
+     * @param timeout     time bound
      * @param getMarginal if the returned value is marginal cost or the absolute cost
      * @return marginal cost or absolute cost
      */
@@ -311,11 +319,13 @@ public class Planner {
          * @param vehicles
          * @return The plan for each vehicle
          */
-        public List<Plan> getPlans(List<Vehicle> vehicles) {
+        public List<Plan> getPlans(List<Vehicle> vehicles, TaskSet tasks) {
             ArrayList<Plan> plans = new ArrayList<>();
 
             // Generate a plan for each vehicle
             vehicles.forEach(vehicle -> {
+
+                System.out.println("planning vehicle");
 
                 if (!firstTasks.containsKey(vehicle)) {
                     System.err.println("Computing plan on adversary is not supported");
@@ -330,8 +340,11 @@ public class Planner {
                     // Append moves actions until the first pickup
                     vehicle.homeCity().pathTo(current.getCity()).forEach(plan::appendMove);
 
+                    int fid = current.task.id;
+                    Task first = tasks.stream().filter(t -> t.id == fid).findFirst().orElse(current.task);
                     // Append first pickup
-                    plan.appendPickup(current.task);
+                    plan.appendPickup(first);
+
 
                     // Then between each task, append moves and the task
                     while (nextTask.get(current) != null) {
@@ -339,10 +352,13 @@ public class Planner {
                         Topology.City nextCity = next.getCity();
                         current.getCity().pathTo(nextCity).forEach(plan::appendMove);
 
+                        int id = next.task.id;
+                        Task task = tasks.stream().filter(t -> t.id == id).findFirst().orElse(next.task);
+
                         if (next.action == ConcreteTask.Action.PICKUP) {
-                            plan.appendPickup(next.task);
+                            plan.appendPickup(task);
                         } else {
-                            plan.appendDelivery(next.task);
+                            plan.appendDelivery(task);
                         }
 
                         current = next;
